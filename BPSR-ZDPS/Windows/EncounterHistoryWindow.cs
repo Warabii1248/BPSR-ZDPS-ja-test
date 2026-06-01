@@ -230,7 +230,7 @@ namespace BPSR_ZDPS.Windows
                     ImGui.Text($"Battles: {Battles.Count}");
                 }
 
-                string[] OrderByOptions = { "Order By Damage", "Order By Healing", "Order By Taken" };
+                string[] OrderByOptions = { AppStrings.GetLocalized("EncounterHistory_OrderByDamage"), AppStrings.GetLocalized("EncounterHistory_OrderByHealing"), AppStrings.GetLocalized("EncounterHistory_OrderByTaken") };
                 ImGui.SameLine();
                 ImGui.SetNextItemWidth(ImGui.CalcTextSize($"{OrderByOptions[SelectedOrderByOption]}").X + 32); // Extra spaces to ensure full text is visible
                 ImGui.Combo("##OrderByCombo", ref SelectedOrderByOption, OrderByOptions, OrderByOptions.Length);
@@ -254,7 +254,7 @@ namespace BPSR_ZDPS.Windows
                     }
                     else
                     {
-                        selectedPreviewText = "Select a battle...";
+                        selectedPreviewText = AppStrings.GetLocalized("EncounterHistory_SelectAnEncounter");
                     }
                 }
 
@@ -370,32 +370,32 @@ namespace BPSR_ZDPS.Windows
                     {
                         ImGui.TableSetupColumn("#");
                         ImGui.TableSetupColumn("UID");
-                        ImGui.TableSetupColumn("Name");
-                        ImGui.TableSetupColumn("Profession");
-                        ImGui.TableSetupColumn("Ability Score");
-                        ImGui.TableSetupColumn("Season Strength");
-                        ImGui.TableSetupColumn("Total DMG");
-                        ImGui.TableSetupColumn("Active DPS");
-                        ImGui.TableSetupColumn("Encounter DPS");
-                        ImGui.TableSetupColumn("Shield Break");
-                        ImGui.TableSetupColumn("Crit Rate");
-                        ImGui.TableSetupColumn("Lucky Rate");
-                        ImGui.TableSetupColumn("Crit DMG");
-                        ImGui.TableSetupColumn("Lucky DMG");
-                        ImGui.TableSetupColumn("Crit Lucky DMG");
-                        ImGui.TableSetupColumn("Max Single DPS");
-                        ImGui.TableSetupColumn("Shield Gain");
-                        ImGui.TableSetupColumn("Total Healing");
-                        ImGui.TableSetupColumn("Total HPS");
-                        ImGui.TableSetupColumn("Effective Healing");
-                        ImGui.TableSetupColumn("Total Overhealing");
-                        ImGui.TableSetupColumn("Crit Healing");
-                        ImGui.TableSetupColumn("Lucky Healing");
-                        ImGui.TableSetupColumn("Crit Lucky Healing");
-                        ImGui.TableSetupColumn("Max Single HPS");
-                        ImGui.TableSetupColumn("Max HP");
-                        ImGui.TableSetupColumn("Damage Taken");
-                        ImGui.TableSetupColumn("Deaths");
+                        ImGui.TableSetupColumn(AppStrings.GetLocalized("EncounterHistory_Col_Name"));
+                        ImGui.TableSetupColumn(AppStrings.GetLocalized("EncounterHistory_Col_Profession"));
+                        ImGui.TableSetupColumn(AppStrings.GetLocalized("EncounterHistory_Col_AbilityScore"));
+                        ImGui.TableSetupColumn(AppStrings.GetLocalized("EncounterHistory_Col_SeasonStrength"));
+                        ImGui.TableSetupColumn(AppStrings.GetLocalized("EncounterHistory_Col_TotalDMG"));
+                        ImGui.TableSetupColumn(AppStrings.GetLocalized("EncounterHistory_Col_ActiveDPS"));
+                        ImGui.TableSetupColumn(AppStrings.GetLocalized("EncounterHistory_Col_EncounterDPS"));
+                        ImGui.TableSetupColumn(AppStrings.GetLocalized("EncounterHistory_Col_ShieldBreak"));
+                        ImGui.TableSetupColumn(AppStrings.GetLocalized("EncounterHistory_Col_CritRate"));
+                        ImGui.TableSetupColumn(AppStrings.GetLocalized("EncounterHistory_Col_LuckyRate"));
+                        ImGui.TableSetupColumn(AppStrings.GetLocalized("EncounterHistory_Col_CritDMG"));
+                        ImGui.TableSetupColumn(AppStrings.GetLocalized("EncounterHistory_Col_LuckyDMG"));
+                        ImGui.TableSetupColumn(AppStrings.GetLocalized("EncounterHistory_Col_CritLuckyDMG"));
+                        ImGui.TableSetupColumn(AppStrings.GetLocalized("EncounterHistory_Col_MaxSingleDPS"));
+                        ImGui.TableSetupColumn(AppStrings.GetLocalized("EncounterHistory_Col_ShieldGain"));
+                        ImGui.TableSetupColumn(AppStrings.GetLocalized("EncounterHistory_Col_TotalHealing"));
+                        ImGui.TableSetupColumn(AppStrings.GetLocalized("EncounterHistory_Col_TotalHPS"));
+                        ImGui.TableSetupColumn(AppStrings.GetLocalized("EncounterHistory_Col_EffectiveHealing"));
+                        ImGui.TableSetupColumn(AppStrings.GetLocalized("EncounterHistory_Col_TotalOverhealing"));
+                        ImGui.TableSetupColumn(AppStrings.GetLocalized("EncounterHistory_Col_CritHealing"));
+                        ImGui.TableSetupColumn(AppStrings.GetLocalized("EncounterHistory_Col_LuckyHealing"));
+                        ImGui.TableSetupColumn(AppStrings.GetLocalized("EncounterHistory_Col_CritLuckyHealing"));
+                        ImGui.TableSetupColumn(AppStrings.GetLocalized("EncounterHistory_Col_MaxSingleHPS"));
+                        ImGui.TableSetupColumn(AppStrings.GetLocalized("EncounterHistory_Col_MaxHP"));
+                        ImGui.TableSetupColumn(AppStrings.GetLocalized("EncounterHistory_Col_DamageTaken"));
+                        ImGui.TableSetupColumn(AppStrings.GetLocalized("EncounterHistory_Col_Deaths"));
                         ImGui.TableHeadersRow();
 
                         if (IsLoadingFromDatabase)

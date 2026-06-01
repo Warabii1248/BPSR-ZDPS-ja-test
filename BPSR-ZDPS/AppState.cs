@@ -334,14 +334,7 @@ namespace BPSR_ZDPS
                     Dictionary<string, string> combinedLocs = AppStrings.Locs.ToDictionary();
                     foreach (var loc in appStrings)
                     {
-                        if (combinedLocs.TryGetValue(loc.Key, out var value))
-                        {
-                            combinedLocs[loc.Key] = loc.Value;
-                        }
-                        else
-                        {
-                            combinedLocs.Add(loc.Key, loc.Value);
-                        }
+                        combinedLocs[loc.Key] = loc.Value;
                     }
                     AppStrings.Locs = combinedLocs.ToFrozenDictionary();
                     Log.Information($"Loaded {$"AppStrings.{Settings.Instance.Language}.json"}");
@@ -349,6 +342,20 @@ namespace BPSR_ZDPS
                 else
                 {
                     Log.Error($"Failed to loaded {$"AppStrings.{Settings.Instance.Language}.json"}");
+                }
+
+                // Load ext overlay for language (fork-specific strings)
+                string appStringsExtLocFile = Path.Combine(Utils.DATA_DIR_NAME, $"AppStrings.ext.{Settings.Instance.Language}.json");
+                if (File.Exists(appStringsExtLocFile))
+                {
+                    var appStringsExt = JsonConvert.DeserializeObject<Dictionary<string, string>>(File.ReadAllText(appStringsExtLocFile));
+                    Dictionary<string, string> combinedLocs = AppStrings.Locs.ToDictionary();
+                    foreach (var loc in appStringsExt)
+                    {
+                        combinedLocs[loc.Key] = loc.Value;
+                    }
+                    AppStrings.Locs = combinedLocs.ToFrozenDictionary();
+                    Log.Information($"Loaded {$"AppStrings.ext.{Settings.Instance.Language}.json"}");
                 }
             }
         }
@@ -432,7 +439,7 @@ namespace BPSR_ZDPS
             LoadBuffOverrideFile("BuffOverrides.en.json");
             if (!string.IsNullOrEmpty(Settings.Instance.Language) && Settings.Instance.Language != "en")
             {
-                LoadSkillOverrideFile($"BuffOverrides.{Settings.Instance.Language}.json");
+                LoadBuffOverrideFile($"BuffOverrides.{Settings.Instance.Language}.json");
             }
         }
 

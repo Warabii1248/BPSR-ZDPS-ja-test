@@ -715,15 +715,15 @@ namespace BPSR_ZDPS.Windows
                     }
                     if (ImGui.BeginMenu(AppStrings.GetLocalized("FeaturesMenu_Debug")))
                     {
-                        if (ImGui.MenuItem("Net Debug"))
+                        if (ImGui.MenuItem(AppStrings.GetLocalized("FeaturesMenu_Debug_NetDebug")))
                         {
                             NetDebug.Open();
                         }
-                        if (ImGui.MenuItem("Dungeon Tracker"))
+                        if (ImGui.MenuItem(AppStrings.GetLocalized("FeaturesMenu_Debug_DungeonTracker")))
                         {
                             DebugDungeonTracker.Open();
                         }
-                        if (ImGui.MenuItem("Entity Cache Viewer"))
+                        if (ImGui.MenuItem(AppStrings.GetLocalized("FeaturesMenu_Debug_EntityCacheViewer")))
                         {
                             EntityCacheViewerWindow.Open();
                         }

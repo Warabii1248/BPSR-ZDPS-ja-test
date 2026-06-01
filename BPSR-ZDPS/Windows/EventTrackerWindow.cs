@@ -4640,7 +4640,7 @@ namespace BPSR_ZDPS.Windows
                     ImGui.Indent();
 
                     ImGui.BeginDisabled(ActiveTrackerContainer.ContainerLayoutStyle == EContainerLayoutStyle.SingleItem || ActiveTrackerContainer.TrackAllSkills);
-                    if (ImGui.Checkbox("Track All Buffs##ContainerTrackAllBuffs", ref ActiveTrackerContainer.TrackAllBuffs))
+                    if (ImGui.Checkbox($"{AppStrings.GetLocalized("EventTracker_Special_TrackAllBuffs")}##ContainerTrackAllBuffs", ref ActiveTrackerContainer.TrackAllBuffs))
                     {
                         if (ActiveTrackerContainer.TrackAllBuffs && ActiveTrackerContainer.EventTrackers.Count == 0)
                         {
@@ -4662,13 +4662,13 @@ namespace BPSR_ZDPS.Windows
                     ImGui.EndDisabled();
                     ImGui.BeginDisabled();
                     ImGui.Indent();
-                    ImGui.TextWrapped("If this is Enabled, the First Tracker in this Container will be used for the settings of all Buffs that get automatically tracked.");
-                    ImGui.TextWrapped("Any Buff selected within the Tracker will be ignored. Additionally, the Tracker Type MUST be set to Buff.");
+                    ImGui.TextWrapped(AppStrings.GetLocalized("EventTracker_Special_TrackAllBuffs_Desc1"));
+                    ImGui.TextWrapped(AppStrings.GetLocalized("EventTracker_Special_TrackAllBuffs_Desc2"));
                     ImGui.Unindent();
                     ImGui.EndDisabled();
 
                     ImGui.BeginDisabled(ActiveTrackerContainer.ContainerLayoutStyle == EContainerLayoutStyle.SingleItem || ActiveTrackerContainer.TrackAllBuffs);
-                    if (ImGui.Checkbox("Track All Skills##ContainerTrackAllSkills", ref ActiveTrackerContainer.TrackAllSkills))
+                    if (ImGui.Checkbox($"{AppStrings.GetLocalized("EventTracker_Special_TrackAllSkills")}##ContainerTrackAllSkills", ref ActiveTrackerContainer.TrackAllSkills))
                     {
                         if (ActiveTrackerContainer.TrackAllSkills && ActiveTrackerContainer.EventTrackers.Count == 0)
                         {
@@ -4691,8 +4691,8 @@ namespace BPSR_ZDPS.Windows
                     ImGui.EndDisabled();
                     ImGui.BeginDisabled();
                     ImGui.Indent();
-                    ImGui.TextWrapped("If this is Enabled, the First Tracker in this Container will be used for the settings of all Skills that get automatically tracked.");
-                    ImGui.TextWrapped("Any Skill selected within the Tracker will be ignored. Additionally, the Tracker Type MUST be set to Skill.");
+                    ImGui.TextWrapped(AppStrings.GetLocalized("EventTracker_Special_TrackAllSkills_Desc1"));
+                    ImGui.TextWrapped(AppStrings.GetLocalized("EventTracker_Special_TrackAllSkills_Desc2"));
                     ImGui.Unindent();
                     ImGui.EndDisabled();
 

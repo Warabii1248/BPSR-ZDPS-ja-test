@@ -378,7 +378,8 @@ namespace BPSR_ZDPS
 
             // Japanese character supporting font (this is a bit heavy to load into memory - 5MB)
             //ff = new FontFile("BPSR_ZDPS.Fonts.fot-seuratpron-m.otf");
-            var ff = new FontFile("BPSR_ZDPS.Fonts.fot-seuratpron-m.otf", new GlyphRange(0x3000, 0x303F));
+            // Range 0x3000-0x30FF covers CJK Symbols, Hiragana, and Katakana
+            var ff = new FontFile("BPSR_ZDPS.Fonts.fot-seuratpron-m.otf", new GlyphRange(0x3000, 0x30FF));
             var res = ff.BindToImGui(18.0f, true);
             ff.Dispose();
 
