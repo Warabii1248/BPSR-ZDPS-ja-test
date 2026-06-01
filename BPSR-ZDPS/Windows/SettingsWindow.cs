@@ -206,14 +206,13 @@ namespace BPSR_ZDPS.Windows
                 ImGuiTabBarFlags tabBarFlags = ImGuiTabBarFlags.FittingPolicyScroll | ImGuiTabBarFlags.NoTooltip | ImGuiTabBarFlags.NoCloseWithMiddleMouseButton;
                 if (ImGui.BeginTabBar("##SettingsTabs", tabBarFlags))
                 {
-                    if (ImGui.BeginTabItem("General"))
+                    if (ImGui.BeginTabItem(AppStrings.GetLocalized("Settings_Tab_General")))
                     {
                         var contentRegionAvail = ImGui.GetContentRegionAvail();
                         ImGui.BeginChild("##GeneralTabContent", new Vector2(contentRegionAvail.X, contentRegionAvail.Y - 56), ImGuiChildFlags.Borders);
 
-                        ImGui.SeparatorText("Localization (Coming Soon)");
+                        ImGui.SeparatorText(AppStrings.GetLocalized("Settings_Section_Localization"));
 
-                        ImGui.BeginDisabled();
                         ImGui.AlignTextToFramePadding();
                         ImGui.TextUnformatted("Language: ");
                         ImGui.SameLine();
@@ -238,9 +237,7 @@ namespace BPSR_ZDPS.Windows
                             ImGui.EndCombo();
                         }
 
-                        ImGui.EndDisabled();
-
-                        ImGui.SeparatorText("Network Device");
+                        ImGui.SeparatorText(AppStrings.GetLocalized("Settings_Section_NetworkDevice"));
 
                         if (npcapVersion == new Version())
                         {
@@ -265,7 +262,7 @@ namespace BPSR_ZDPS.Windows
                             ImGui.PopStyleColor();
                         }
 
-                        ImGui.Text("Select the network device to read from:");
+                        ImGui.Text(AppStrings.GetLocalized("Settings_NetworkDevice_Text"));
 
                         ImGui.SetNextItemWidth(ImGui.GetContentRegionAvail().X);
 
@@ -310,7 +307,7 @@ namespace BPSR_ZDPS.Windows
                         }
 
                         ImGui.AlignTextToFramePadding();
-                        ImGui.TextUnformatted("Game Capture Preference: ");
+                        ImGui.TextUnformatted(AppStrings.GetLocalized("Settings_GameCapturePreference"));
                         ImGui.SameLine();
 
                         var gamePrefName = Utils.GameCapturePreferenceToName(GameCapturePreference);
@@ -364,7 +361,7 @@ namespace BPSR_ZDPS.Windows
 
                         ImGui.Indent();
                         ImGui.BeginDisabled(true);
-                        ImGui.TextWrapped("Select which game version you want ZDPS to capture from.\nAuto will automatically detect and use the currently running version. Two simultaneous clients will cause data problems while on Auto.\nSteam and Standalone will only listen for data from their respective versions, allowing both to be run simultaneously and only report DPS for one.");
+                        ImGui.TextWrapped(AppStrings.GetLocalized("Settings_GameCapturePreference_Desc"));
                         ImGui.EndDisabled();
                         ImGui.Unindent();
 
@@ -373,7 +370,7 @@ namespace BPSR_ZDPS.Windows
                             ImGui.Indent();
                             
                             ImGui.AlignTextToFramePadding();
-                            ImGui.Text("Custom BPSR Executable Name: ");
+                            ImGui.Text(AppStrings.GetLocalized("Settings_CustomBPSRExecutableName"));
                             ImGui.SameLine();
                             ImGui.SetNextItemWidth(-1);
                             if (ImGui.InputText("##GameCaptureCustomExeName", ref gameCaptureCustomExeName, 512))
@@ -382,14 +379,14 @@ namespace BPSR_ZDPS.Windows
                             }
                             ImGui.Indent();
                             ImGui.BeginDisabled(true);
-                            ImGui.TextWrapped("The executable file name of the game to listen to. Ex: BPSR_STEAM");
+                            ImGui.TextWrapped(AppStrings.GetLocalized("Settings_CustomBPSRExecutableName_Desc"));
                             ImGui.EndDisabled();
                             ImGui.Unindent();
 
                             ImGui.Unindent();
                         }
 
-                        ImGui.SeparatorText("Keybinds");
+                        ImGui.SeparatorText(AppStrings.GetLocalized("Settings_Section_Keybinds"));
 
                         if (IsElevated == false)
                         {
@@ -398,13 +395,13 @@ namespace BPSR_ZDPS.Windows
                             ImGui.PushFont(HelperMethods.Fonts["Segoe-Bold"], ImGui.GetFontSize());
                             ImGui.TextWrapped("Important Note:");
                             ImGui.PopFont();
-                            ImGui.TextWrapped("Keybinds only work while the game is in focus if ZDPS is being run as Administrator. This is a limitation imposed by the Game Devs.");
+                            ImGui.TextWrapped(AppStrings.GetLocalized("Settings_Keybinds_Notice"));
                             ImGui.EndChild();
                             ImGui.PopStyleColor();
                         }
 
-                        ImGui.TextWrapped("Below are global hotkey keybinds for the application. Click on the box and press a key to bind it. Modifier keys (Ctrl/Alt/Shift) are not supported.");
-                        ImGui.TextWrapped("Press Escape to cancel the rebinding process.");
+                        ImGui.TextWrapped(AppStrings.GetLocalized("Settings_Keybinds_Text"));
+                        ImGui.TextWrapped(AppStrings.GetLocalized("Settings_PressEscapeToCancelRebinding"));
 
                         ImGui.Indent();
 
@@ -413,40 +410,40 @@ namespace BPSR_ZDPS.Windows
                         {
                             ImGui.Indent();
                             ImGui.PushStyleColor(ImGuiCol.Text, Colors.Red_Transparent);
-                            ImGui.TextWrapped("[Split Encounters On New Phases] is Enabled. You likely do not need this keybind to manually reset an Encounter. ZDPS will handle Encounter separation for you.");
+                            ImGui.TextWrapped(AppStrings.GetLocalized("Settings_Keybinds_EncounterReset_Warning"));
                             ImGui.PopStyleColor();
                             ImGui.Unindent();
                         }
                         RebindKeyButton("Pinned Window Clickthrough", ref PinnedWindowClickthroughKey, ref PinnedWindowClickthroughKeyName, ref IsBindingPinnedWindowClickthroughKey);
                         ImGui.Indent();
                         ImGui.BeginDisabled(true);
-                        ImGui.TextWrapped("This allows your mouse input to go 'through' the pinned (Top Most) window, ignoring it, and interacting with whatever may be behind it such as the game or another application.");
+                        ImGui.TextWrapped(AppStrings.GetLocalized("Settings_Keybinds_PinnedWindowClickthrough_Desc"));
                         ImGui.EndDisabled();
                         ImGui.Unindent();
 
                         RebindKeyButton("Toggle Window Minimize", ref ToggleWindowMinimizeKey, ref ToggleWindowMinimizeKeyName, ref IsBindingToggleWindowMinimizeKey);
                         ImGui.Indent();
                         ImGui.BeginDisabled(true);
-                        ImGui.TextWrapped("This will let you minimize, or restore, the Main Window with a key press.");
+                        ImGui.TextWrapped(AppStrings.GetLocalized("Settings_Keybinds_ToggleWindowMinimize_Desc"));
                         ImGui.EndDisabled();
                         ImGui.Unindent();
 
                         ImGui.Unindent();
 
-                        ImGui.SeparatorText("ZDPS Update Checking");
+                        ImGui.SeparatorText(AppStrings.GetLocalized("Settings_Section_ZDPSUpdateChecking"));
 
                         ImGui.AlignTextToFramePadding();
-                        ImGui.Text("Check For ZDPS Updates On Startup: ");
+                        ImGui.Text(AppStrings.GetLocalized("Settings_CheckForZDPSUpdatesOnStartup"));
                         ImGui.SameLine();
                         ImGui.Checkbox("##CheckForZDPSUpdatesOnStartup", ref checkForZDPSUpdatesOnStartup);
                         ImGui.Indent();
                         ImGui.BeginDisabled(true);
-                        ImGui.TextWrapped("When enabled, ZDPS will check online for available updates when the application is launched.");
+                        ImGui.TextWrapped(AppStrings.GetLocalized("Settings_CheckForZDPSUpdatesOnStartup_Desc"));
                         ImGui.EndDisabled();
                         ImGui.Unindent();
 
                         ImGui.AlignTextToFramePadding();
-                        ImGui.Text("Latest ZDPS Version Check URL: ");
+                        ImGui.Text(AppStrings.GetLocalized("Settings_LatestZDPSVersionCheckURL"));
                         ImGui.SameLine();
                         ImGui.SetNextItemWidth(-1);
                         if (ImGui.InputText("##LatestZDPSVersionCheckURL", ref latestZDPSVersionCheckURL, 512))
@@ -459,27 +456,27 @@ namespace BPSR_ZDPS.Windows
                         }
                         ImGui.Indent();
                         ImGui.BeginDisabled(true);
-                        ImGui.TextWrapped("The URL to check for ZDPS version updates at.");
+                        ImGui.TextWrapped(AppStrings.GetLocalized("Settings_LatestZDPSVersionCheckURL_Desc"));
                         ImGui.EndDisabled();
                         ImGui.Unindent();
 
-                        ImGui.SeparatorText("Database");
+                        ImGui.SeparatorText(AppStrings.GetLocalized("Settings_Section_Database"));
 
                         ShowRestartRequiredNotice(Settings.Instance.UseDatabaseForEncounterHistory != useDatabaseForEncounterHistory, "Use Database For Encounter History");
 
                         ImGui.AlignTextToFramePadding();
-                        ImGui.Text("Use Database For Encounter History: ");
+                        ImGui.Text(AppStrings.GetLocalized("Settings_UseDatabaseForEncounterHistory"));
                         ImGui.SameLine();
                         ImGui.Checkbox("##UseDatabaseForEncounterHistory", ref useDatabaseForEncounterHistory);
                         ImGui.Indent();
                         ImGui.BeginDisabled(true);
-                        ImGui.TextWrapped("When enabled, all encounter data is saved into a local database file (ZDatabase.db) to reduce memory usage and allow viewing between ZDPS sessions. Applies after restarting ZDPS.");
+                        ImGui.TextWrapped(AppStrings.GetLocalized("Settings_UseDatabaseForEncounterHistory_Desc"));
                         ImGui.EndDisabled();
                         ImGui.Unindent();
 
                         ImGui.BeginDisabled(!useDatabaseForEncounterHistory);
                         ImGui.AlignTextToFramePadding();
-                        ImGui.Text("Database Encounter History Retention Policy: ");
+                        ImGui.Text(AppStrings.GetLocalized("Settings_DatabaseEncounterHistoryRetentionPolicy"));
                         ImGui.SameLine();
                         ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, ImGui.GetColorU32(ImGuiCol.FrameBgHovered, 0.55f));
                         ImGui.PushStyleColor(ImGuiCol.FrameBgActive, ImGui.GetColorU32(ImGuiCol.FrameBgActive, 0.55f));
@@ -488,70 +485,70 @@ namespace BPSR_ZDPS.Windows
                         ImGui.PopStyleColor(2);
                         ImGui.Indent();
                         ImGui.BeginDisabled(true);
-                        ImGui.TextWrapped("How long to keep previous Encounter History data for. When not set to Keep Forever, expired data is automatically deleted on application close.");
+                        ImGui.TextWrapped(AppStrings.GetLocalized("Settings_DatabaseEncounterHistoryRetentionPolicy_Desc"));
                         ImGui.EndDisabled();
                         ImGui.Unindent();
                         ImGui.EndDisabled();
 
                         ImGui.AlignTextToFramePadding();
-                        ImGui.Text("Skip Saving Encounters With No Combat Data [Experimental]: ");
+                        ImGui.Text(AppStrings.GetLocalized("Settings_SkipSavingEncountersWithNoCombatData"));
                         ImGui.SameLine();
                         ImGui.Checkbox("##SkipSavingEncountersWithNoCombatData", ref skipSavingEncountersWithNoCombatData);
                         ImGui.Indent();
                         ImGui.BeginDisabled(true);
-                        ImGui.TextWrapped("When enabled, Encounters that have no combat data (such as damage events) will not be saved to the database.");
+                        ImGui.TextWrapped(AppStrings.GetLocalized("Settings_SkipSavingEncountersWithNoCombatData_Desc"));
                         ImGui.EndDisabled();
                         ImGui.Unindent();
 
                         ImGui.AlignTextToFramePadding();
-                        ImGui.Text("Limit Encounter Buff Tracking In Open World: ");
+                        ImGui.Text(AppStrings.GetLocalized("Settings_LimitEncounterBuffTrackingInOpenWorld"));
                         ImGui.SameLine();
                         ImGui.Checkbox("##LimitEncounterBuffTrackingInOpenWorld", ref limitEncounterBuffTrackingInOpenWorld);
                         ImGui.Indent();
                         ImGui.BeginDisabled(true);
-                        ImGui.TextWrapped("When enabled, buffs are limited to only the latest 100 per entity instead of being limitless. This setting is not retroactive.");
+                        ImGui.TextWrapped(AppStrings.GetLocalized("Settings_LimitEncounterBuffTrackingInOpenWorld_Desc"));
                         ImGui.EndDisabled();
                         ImGui.Unindent();
 
                         ImGui.AlignTextToFramePadding();
-                        ImGui.Text("Skip Skill Snapshot Saving In Open World: ");
+                        ImGui.Text(AppStrings.GetLocalized("Settings_SkipSkillSnapshotSavingInOpenWorld"));
                         ImGui.SameLine();
                         ImGui.Checkbox("##SkipSkillSnapshotSavingInOpenWorld", ref skipSkillSnapshotSavingInOpenWorld);
                         ImGui.Indent();
                         ImGui.BeginDisabled(true);
-                        ImGui.TextWrapped("When enabled, Skill Snapshots are no longer stored whenever a Skill Event occurs. Snapshots makes it possible to view Skill Snapshots (Instances) in the Entity Inspector. They also allow Database Migrations to occur without losing data.\nEnabling this setting can help save a lot of memory while in the Open World.\nNote: By default your current 'Map' is considered to be the 'Open World' before your first Map Change just after launching ZDPS even if you're not in the Open World.");
+                        ImGui.TextWrapped(AppStrings.GetLocalized("Settings_SkipSkillSnapshotSavingInOpenWorld_Desc"));
                         ImGui.EndDisabled();
                         ImGui.Unindent();
 
                         ImGui.AlignTextToFramePadding();
-                        ImGui.Text("Allow Encounter Saving Pausing In Open World: ");
+                        ImGui.Text(AppStrings.GetLocalized("Settings_AllowEncounterSavingPausingInOpenWorld"));
                         ImGui.SameLine();
                         ImGui.Checkbox("##AllowEncounterSavingPausingInOpenWorld", ref allowEncounterSavingPausingInOpenWorld);
                         ImGui.Indent();
                         ImGui.BeginDisabled(true);
-                        ImGui.TextWrapped("When enabled, a button is added to the top of the Main Window that allows the current Encounter to not be saved to the Database.\nThis is only available while in the Open World and will automatically disable when map changing. Benchmarking and Manual New Encounter creation will be disabled while Paused.\nNote: At least one map change is required before the button will appear after starting ZDPS.");
+                        ImGui.TextWrapped(AppStrings.GetLocalized("Settings_AllowEncounterSavingPausingInOpenWorld_Desc"));
                         ImGui.EndDisabled();
                         ImGui.Unindent();
 
                         ImGui.BeginDisabled(!allowEncounterSavingPausingInOpenWorld);
 
                         ImGui.AlignTextToFramePadding();
-                        ImGui.Text("Persist Encounter Saving Pause State Between Maps: ");
+                        ImGui.Text(AppStrings.GetLocalized("Settings_PersistEncounterSavingPauseStateBetweenMaps"));
                         ImGui.SameLine();
                         ImGui.Checkbox("##PersistEncounterSavingPauseStateBetweenMaps", ref persistEncounterSavingPauseStateBetweenMaps);
                         ImGui.Indent();
                         ImGui.BeginDisabled(true);
-                        ImGui.TextWrapped("When enabled, the Encounter Saving Pause state will be remembered even after changing maps. However, the state will not persist between ZDPS sessions.");
+                        ImGui.TextWrapped(AppStrings.GetLocalized("Settings_PersistEncounterSavingPauseStateBetweenMaps_Desc"));
                         ImGui.EndDisabled();
                         ImGui.Unindent();
 
                         ImGui.AlignTextToFramePadding();
-                        ImGui.Text("Minimal Processing While Encounter Saving Paused: ");
+                        ImGui.Text(AppStrings.GetLocalized("Settings_MinimalProcessingWhileEncounterSavingPaused"));
                         ImGui.SameLine();
                         ImGui.Checkbox("##MinimalProcessingWhileEncounterSavingPaused", ref minimalProcessingWhileEncounterSavingPaused);
                         ImGui.Indent();
                         ImGui.BeginDisabled(true);
-                        ImGui.TextWrapped("When enabled, while Encounter Saving is Paused, DPS and other metrics will not be calculated. Only the minimum amount of data (Attributes) will be processed.");
+                        ImGui.TextWrapped(AppStrings.GetLocalized("Settings_MinimalProcessingWhileEncounterSavingPaused_Desc"));
                         ImGui.EndDisabled();
                         ImGui.Unindent();
 
@@ -561,53 +558,52 @@ namespace BPSR_ZDPS.Windows
                         ImGui.EndTabItem();
                     }
 
-                    if (ImGui.BeginTabItem("Combat"))
+                    if (ImGui.BeginTabItem(AppStrings.GetLocalized("Settings_Tab_Combat")))
                     {
                         var contentRegionAvail = ImGui.GetContentRegionAvail();
                         ImGui.BeginChild("##CombatTabContent", new Vector2(contentRegionAvail.X, contentRegionAvail.Y - 56), ImGuiChildFlags.Borders);
 
-                        ImGui.SeparatorText("Combat");
+                        ImGui.SeparatorText(AppStrings.GetLocalized("Settings_Tab_Combat"));
 
                         ImGui.AlignTextToFramePadding();
-                        ImGui.Text("Normalize Meter Contribution Bars: ");
+                        ImGui.Text(AppStrings.GetLocalized("Settings_NormalizeMeterContributionBars"));
                         ImGui.SameLine();
                         ImGui.Checkbox("##NormalizeMeterContributions", ref normalizeMeterContributions);
                         ImGui.Indent();
                         ImGui.BeginDisabled(true);
-                        ImGui.TextWrapped("When enabled, the bars for each player in a meter will be based on the top player, not the overall contribution.");
-                        ImGui.TextWrapped("This means the top player is always considered the '100%%' amount.");
+                        ImGui.TextWrapped(AppStrings.GetLocalized("Settings_NormalizeMeterContributionBars_Desc"));
                         ImGui.EndDisabled();
                         ImGui.Unindent();
 
                         ImGui.AlignTextToFramePadding();
-                        ImGui.Text("Use Short Width Number Formatting: ");
+                        ImGui.Text(AppStrings.GetLocalized("Settings_UseShortWidthNumberFormatting"));
                         ImGui.SameLine();
                         ImGui.Checkbox("##UseShortWidthNumberFormatting", ref useShortWidthNumberFormatting);
                         ImGui.Indent();
                         ImGui.BeginDisabled(true);
-                        ImGui.TextWrapped("When enabled, uses shorter width number formats when values over 1000 would otherwise be shown.");
+                        ImGui.TextWrapped(AppStrings.GetLocalized("Settings_UseShortWidthNumberFormatting_Desc"));
                         ImGui.EndDisabled();
                         ImGui.Unindent();
 
                         ImGui.AlignTextToFramePadding();
-                        ImGui.Text("Use Automatic Wipe Detection: ");
+                        ImGui.Text(AppStrings.GetLocalized("Settings_UseAutomaticWipeDetection"));
                         ImGui.SameLine();
                         ImGui.Checkbox("##UseAutomaticWipeDetection", ref useAutomaticWipeDetection);
                         ImGui.Indent();
                         ImGui.BeginDisabled(true);
-                        ImGui.TextWrapped("When enabled, ZDPS will attempt to detect party wipes against bosses and start a new encounter automatically.");
+                        ImGui.TextWrapped(AppStrings.GetLocalized("Settings_UseAutomaticWipeDetection_Desc"));
                         ImGui.EndDisabled();
                         ImGui.Unindent();
 
                         ImGui.BeginDisabled(!useAutomaticWipeDetection);
 
                         ImGui.AlignTextToFramePadding();
-                        ImGui.Text("Use Legacy Wipe Detection: ");
+                        ImGui.Text(AppStrings.GetLocalized("Settings_UseLegacyWipeDetection"));
                         ImGui.SameLine();
                         ImGui.Checkbox("##UseLegacyWipeDetection", ref useLegacyWipeDetection);
                         ImGui.Indent();
                         ImGui.BeginDisabled(true);
-                        ImGui.TextWrapped("When enabled, uses the old legacy methods for detecting wipes.\nYou probably want this Disabled.");
+                        ImGui.TextWrapped(AppStrings.GetLocalized("Settings_UseLegacyWipeDetection_Desc"));
                         if (useLegacyWipeDetection)
                         {
                             ImGui.PushStyleColor(ImGuiCol.Text, Colors.Red);
@@ -619,23 +615,22 @@ namespace BPSR_ZDPS.Windows
 
                         ImGui.BeginDisabled(!useLegacyWipeDetection);
                         ImGui.AlignTextToFramePadding();
-                        ImGui.Text("Skip Teleport State Check In Automatic Wipe Detection: ");
+                        ImGui.Text(AppStrings.GetLocalized("Settings_SkipTeleportStateCheckInAutomaticWipeDetection"));
                         ImGui.SameLine();
                         ImGui.Checkbox("##SkipTeleportStateCheckInAutomaticWipeDetection", ref skipTeleportStateCheckInAutomaticWipeDetection);
                         ImGui.Indent();
                         ImGui.BeginDisabled(true);
-                        ImGui.TextWrapped("When enabled, the 'Teleport' Player State requirement in Automatic Wipe Detection is not performed.\nYou probably want this Disabled.");
+                        ImGui.TextWrapped(AppStrings.GetLocalized("Settings_SkipTeleportStateCheckInAutomaticWipeDetection_Desc"));
                         ImGui.EndDisabled();
                         ImGui.Unindent();
 
                         ImGui.AlignTextToFramePadding();
-                        ImGui.Text("Disable Wipe Recalculation Overwriting: ");
+                        ImGui.Text(AppStrings.GetLocalized("Settings_DisableWipeRecalculationOverwriting"));
                         ImGui.SameLine();
                         ImGui.Checkbox("##DisableWipeRecalculationOverwriting", ref disableWipeRecalculationOverwriting);
                         ImGui.Indent();
                         ImGui.BeginDisabled(true);
-                        //ImGui.TextWrapped("When enabled, the internal process of checking the Dead status of all players in the Encounter is allowed to overwrite the detected wipe status from the normal automatic detector.\nAllowing this to overturn results is experimental so only enable it if you run into incorrect wipe reporting.");
-                        ImGui.TextWrapped("When enabled, the new Wipe Recalcuation logic will be Disabled and the original method will be used (if 'Use Automatic Wipe Detection' if still Enabled).");
+                        ImGui.TextWrapped(AppStrings.GetLocalized("Settings_DisableWipeRecalculationOverwriting_Desc"));
                         ImGui.EndDisabled();
                         ImGui.Unindent();
                         ImGui.EndDisabled();
@@ -643,32 +638,32 @@ namespace BPSR_ZDPS.Windows
                         ImGui.EndDisabled();
 
                         ImGui.AlignTextToFramePadding();
-                        ImGui.Text("Split Encounters On New Phases: ");
+                        ImGui.Text(AppStrings.GetLocalized("Settings_SplitEncountersOnNewPhases"));
                         ImGui.SameLine();
                         ImGui.Checkbox("##SplitEncountersOnNewPhases", ref splitEncountersOnNewPhases);
                         ImGui.Indent();
                         ImGui.BeginDisabled(true);
-                        ImGui.TextWrapped("When enabled, encounters are automatically split across phase changes. This allows bosses to be split from the rest of a dungeon. It also splits raid boss phases.\nThis probably should be Enabled.");
+                        ImGui.TextWrapped(AppStrings.GetLocalized("Settings_SplitEncountersOnNewPhases_Desc"));
                         ImGui.EndDisabled();
                         ImGui.Unindent();
 
                         ImGui.AlignTextToFramePadding();
-                        ImGui.Text("Display Active Per Second Values In Meters: ");
+                        ImGui.Text(AppStrings.GetLocalized("Settings_DisplayActivePerSecondValuesInMeters"));
                         ImGui.SameLine();
                         ImGui.Checkbox("##DisplayTruePerSecondValuesInMeters", ref displayTruePerSecondValuesInMeters);
                         ImGui.Indent();
                         ImGui.BeginDisabled(true);
-                        ImGui.TextWrapped("When enabled, the Damage, Healing, and Taken Per Second value shown in the Meters will have the 'Active' Per Second value, shown in square brackets, in addition to the normal 'Encounter Per Second' value. This means it is recalculated every second while taking down time and late starts into account instead of ignoring down time and calculating based on when the first damage event in the Encounter was dealt.\nNote: Both values are accurate, they are just two different metrics.");
+                        ImGui.TextWrapped(AppStrings.GetLocalized("Settings_DisplayActivePerSecondValuesInMeters_Desc"));
                         ImGui.EndDisabled();
                         ImGui.Unindent();
 
                         ImGui.AlignTextToFramePadding();
-                        ImGui.Text("Include Heal Events Outside Of Combat: ");
+                        ImGui.Text(AppStrings.GetLocalized("Settings_IncludeHealEventsOutsideOfCombat"));
                         ImGui.SameLine();
                         ImGui.Checkbox("##IncludeHealEventsOutsideOfCombat", ref includeHealEventsOutsideOfCombat);
                         ImGui.Indent();
                         ImGui.BeginDisabled(true);
-                        ImGui.TextWrapped("When enabled, Healing events that occur outside of an Active Encounter Combat section will still be included in the calculations.\nThis means if a player performs healing before a boss is pulled, the Encounter will be considered started before attacks began in the fight.");
+                        ImGui.TextWrapped(AppStrings.GetLocalized("Settings_IncludeHealEventsOutsideOfCombat_Desc"));
                         ImGui.EndDisabled();
                         ImGui.Unindent();
 
@@ -676,159 +671,159 @@ namespace BPSR_ZDPS.Windows
                         ImGui.EndTabItem();
                     }
 
-                    if (ImGui.BeginTabItem("User Interface"))
+                    if (ImGui.BeginTabItem(AppStrings.GetLocalized("Settings_Tab_UserInterface")))
                     {
                         var contentRegionAvail = ImGui.GetContentRegionAvail();
                         ImGui.BeginChild("##UserInterfaceTabContent", new Vector2(contentRegionAvail.X, contentRegionAvail.Y - 56), ImGuiChildFlags.Borders);
 
-                        ImGui.SeparatorText("User Interface");
+                        ImGui.SeparatorText(AppStrings.GetLocalized("Settings_Tab_UserInterface"));
 
                         ImGui.AlignTextToFramePadding();
-                        ImGui.Text("Show Class Icons In Meters: ");
+                        ImGui.Text(AppStrings.GetLocalized("Settings_ShowClassIconsInMeters"));
                         ImGui.SameLine();
                         ImGui.Checkbox("##ShowClassIconsInMeters", ref showClassIconsInMeters);
                         ImGui.Indent();
                         ImGui.BeginDisabled(true);
-                        ImGui.TextWrapped("When enabled, class icons will be shown next to players in the meters.");
+                        ImGui.TextWrapped(AppStrings.GetLocalized("Settings_ShowClassIconsInMeters_Desc"));
                         ImGui.EndDisabled();
                         ImGui.Unindent();
 
                         ImGui.AlignTextToFramePadding();
-                        ImGui.Text("Color Class Icons By Role Type: ");
+                        ImGui.Text(AppStrings.GetLocalized("Settings_ColorClassIconsByRoleType"));
                         ImGui.SameLine();
                         ImGui.Checkbox("##ColorClassIconsByRole", ref colorClassIconsByRole);
                         ImGui.Indent();
                         ImGui.BeginDisabled(true);
-                        ImGui.TextWrapped("When enabled, class icons shown in meters will be colored by their role instead of all being white.");
+                        ImGui.TextWrapped(AppStrings.GetLocalized("Settings_ColorClassIconsByRoleType_Desc"));
                         ImGui.EndDisabled();
                         ImGui.Unindent();
 
                         ImGui.AlignTextToFramePadding();
-                        ImGui.Text("Show Skill Icons In Details: ");
+                        ImGui.Text(AppStrings.GetLocalized("Settings_ShowSkillIconsInDetails"));
                         ImGui.SameLine();
                         ImGui.Checkbox("##ShowSkillIconsInDetails", ref showSkillIconsInDetails);
                         ImGui.Indent();
                         ImGui.BeginDisabled(true);
-                        ImGui.TextWrapped("When enabled, skill icons will be displayed, when possible, in the details panel next to skill names.");
+                        ImGui.TextWrapped(AppStrings.GetLocalized("Settings_ShowSkillIconsInDetails_Desc"));
                         ImGui.EndDisabled();
                         ImGui.Unindent();
 
                         ImGui.AlignTextToFramePadding();
-                        ImGui.Text("Only Show Damage Contributors In Meters: ");
+                        ImGui.Text(AppStrings.GetLocalized("Settings_OnlyShowDamageContributorsInMeters"));
                         ImGui.SameLine();
                         ImGui.Checkbox("##OnlyShowContributorsInMeters", ref onlyShowDamageContributorsInMeters);
                         ImGui.Indent();
                         ImGui.BeginDisabled(true);
-                        ImGui.TextWrapped("When enabled, only players who have dealt damage will show in the DPS meter.");
+                        ImGui.TextWrapped(AppStrings.GetLocalized("Settings_OnlyShowDamageContributorsInMeters_Desc"));
                         ImGui.EndDisabled();
                         ImGui.Unindent();
 
                         ImGui.AlignTextToFramePadding();
-                        ImGui.Text("Only Show Party Members In Meters: ");
+                        ImGui.Text(AppStrings.GetLocalized("Settings_OnlyShowPartyMembersInMeters"));
                         ImGui.SameLine();
                         ImGui.Checkbox("##OnlyShowPartyMembersInMeters", ref onlyShowPartyMembersInMeters);
                         ImGui.Indent();
                         ImGui.BeginDisabled(true);
-                        ImGui.TextWrapped("When enabled, only players who are in the current party will show in the DPS meter.");
+                        ImGui.TextWrapped(AppStrings.GetLocalized("Settings_OnlyShowPartyMembersInMeters_Desc"));
                         ImGui.EndDisabled();
                         ImGui.Unindent();
 
                         ImGui.AlignTextToFramePadding();
-                        ImGui.Text("Show Ability Score In Meters: ");
+                        ImGui.Text(AppStrings.GetLocalized("Settings_ShowAbilityScoreInMeters"));
                         ImGui.SameLine();
                         ImGui.Checkbox("##ShowAbilityScoreInMeters", ref showAbilityScoreInMeters);
                         ImGui.Indent();
                         ImGui.BeginDisabled(true);
-                        ImGui.TextWrapped("When enabled, the Ability Score for players will be shown in the meters.");
+                        ImGui.TextWrapped(AppStrings.GetLocalized("Settings_ShowAbilityScoreInMeters_Desc"));
                         ImGui.EndDisabled();
                         ImGui.Unindent();
 
                         ImGui.AlignTextToFramePadding();
-                        ImGui.Text("Show Season Strength In Meters: ");
+                        ImGui.Text(AppStrings.GetLocalized("Settings_ShowSeasonStrengthInMeters"));
                         ImGui.SameLine();
                         ImGui.Checkbox("##ShowSeasonStrengthInMeters", ref showSeasonStrengthInMeters);
                         ImGui.Indent();
                         ImGui.BeginDisabled(true);
-                        ImGui.TextWrapped("When enabled, the Season Strength for players will be shown in the meters.");
+                        ImGui.TextWrapped(AppStrings.GetLocalized("Settings_ShowSeasonStrengthInMeters_Desc"));
                         ImGui.EndDisabled();
                         ImGui.Unindent();
 
                         ImGui.AlignTextToFramePadding();
-                        ImGui.Text("Show Sub Profession Name In Meters: ");
+                        ImGui.Text(AppStrings.GetLocalized("Settings_ShowSubProfessionNameInMeters"));
                         ImGui.SameLine();
                         ImGui.Checkbox("##ShowSubProfessionNameInMeters", ref showSubProfessionNameInMeters);
                         ImGui.Indent();
                         ImGui.BeginDisabled(true);
-                        ImGui.TextWrapped("When enabled, allows showing the detected Sub Profession name in the meters. If no Sub Profession is detected, just the base class name is shown. If no base class is found, 'Unknown' is shown.");
+                        ImGui.TextWrapped(AppStrings.GetLocalized("Settings_ShowSubProfessionNameInMeters_Desc"));
                         ImGui.EndDisabled();
                         ImGui.Unindent();
 
                         ImGui.AlignTextToFramePadding();
-                        ImGui.Text("Show Player Summons In 'NPC Taken' Meter: ");
+                        ImGui.Text(AppStrings.GetLocalized("Settings_ShowPlayerSummonsInNPCTakenMeter"));
                         ImGui.SameLine();
                         ImGui.Checkbox("##ShowPlayerSummonsInMeters", ref showPlayerSummonsInMeters);
                         ImGui.Indent();
                         ImGui.BeginDisabled(true);
-                        ImGui.TextWrapped("When enabled, Summons (such as Battle Imagine entities or specific skill entities) will be shown in the NPC Taken Meter.\nNote: This does not impact any data recording or Entity Inspector data.");
+                        ImGui.TextWrapped(AppStrings.GetLocalized("Settings_ShowPlayerSummonsInNPCTakenMeter_Desc"));
                         ImGui.EndDisabled();
                         ImGui.Unindent();
 
                         ImGui.AlignTextToFramePadding();
-                        ImGui.Text("Show Player Imagines In Meters: ");
+                        ImGui.Text(AppStrings.GetLocalized("Settings_ShowPlayerImaginesInMeters"));
                         ImGui.SameLine();
                         ImGui.Checkbox("##ShowPlayerImaginesInMeters", ref showPlayerImaginesInMeters);
                         ImGui.Indent();
                         ImGui.BeginDisabled(true);
-                        ImGui.TextWrapped("When enabled, shows the currently equipped imagines for players in the DPS Meter UI.");
+                        ImGui.TextWrapped(AppStrings.GetLocalized("Settings_ShowPlayerImaginesInMeters_Desc"));
                         ImGui.EndDisabled();
                         ImGui.Unindent();
 
                         ImGui.AlignTextToFramePadding();
-                        ImGui.Text("Allow Gamepad Navigation Input In ZDPS: ");
+                        ImGui.Text(AppStrings.GetLocalized("Settings_AllowGamepadNavigationInputInZDPS"));
                         ImGui.SameLine();
                         ImGui.Checkbox("##AllowGamepadNavigationInputInZDPS", ref allowGamepadNavigationInputInZDPS);
                         ImGui.Indent();
                         ImGui.BeginDisabled(true);
-                        ImGui.TextWrapped("When enabled, gamepad input can navigate and control the ZDPS windows.\nNote: Gamepad input may control the windows even without them specifically in focus.");
+                        ImGui.TextWrapped(AppStrings.GetLocalized("Settings_AllowGamepadNavigationInputInZDPS_Desc"));
                         ImGui.EndDisabled();
                         ImGui.Unindent();
 
                         ImGui.AlignTextToFramePadding();
-                        ImGui.Text("Keep Past Encounter In Meter UI Until Next Damage: ");
+                        ImGui.Text(AppStrings.GetLocalized("Settings_KeepPastEncounterInMeterUIUntilNextDamage"));
                         ImGui.SameLine();
                         ImGui.Checkbox("##KeepPastEncounterInMeterUntilNextDamage", ref keepPastEncounterInMeterUntilNextDamage);
                         ImGui.Indent();
                         ImGui.BeginDisabled(true);
-                        ImGui.TextWrapped("When enabled, the previous Encounter will remain in the Meter UI until damage has been dealt in the current Encounter.\nThe Meter UI will still swap to the current Encounter on Battle change events (these are generally Map changes).");
+                        ImGui.TextWrapped(AppStrings.GetLocalized("Settings_KeepPastEncounterInMeterUIUntilNextDamage_Desc"));
                         ImGui.EndDisabled();
                         ImGui.Unindent();
 
                         ImGui.AlignTextToFramePadding();
-                        ImGui.Text("Show Channel Line Number In Status: ");
+                        ImGui.Text(AppStrings.GetLocalized("Settings_ShowChannelLineNumberInStatus"));
                         ImGui.SameLine();
                         ImGui.Checkbox("##ShowChannelLineNumberInStatus", ref showChannelLineNumberInStatus);
                         ImGui.Indent();
                         ImGui.BeginDisabled(true);
-                        ImGui.TextWrapped("When enabled, shows the current Channel Line number in the Status bar of the Main Window.");
+                        ImGui.TextWrapped(AppStrings.GetLocalized("Settings_ShowChannelLineNumberInStatus_Desc"));
                         ImGui.EndDisabled();
                         ImGui.Unindent();
 
                         ImGui.AlignTextToFramePadding();
-                        ImGui.Text("Show 'Call Wipe' For Encounter On Main Window: ");
+                        ImGui.Text(AppStrings.GetLocalized("Settings_ShowCallWipeForEncounterOnMainWindow"));
                         ImGui.SameLine();
                         ImGui.Checkbox("##ShowCallWipeForEncounterOnMainWindow", ref showCallWipeForEncounterOnMainWindow);
                         ImGui.Indent();
                         ImGui.BeginDisabled(true);
-                        ImGui.TextWrapped("When enabled, adds a button (Skull Icon) to the title bar of the Main Window to 'Call Wipe' for the current Encounter and end it immediately.");
+                        ImGui.TextWrapped(AppStrings.GetLocalized("Settings_ShowCallWipeForEncounterOnMainWindow_Desc"));
                         ImGui.EndDisabled();
                         ImGui.Unindent();
 
-                        if (ImGui.CollapsingHeader("Pinned (Top Most) Window Opacities"))
+                        if (ImGui.CollapsingHeader(AppStrings.GetLocalized("Settings_PinnedWindowOpacities")))
                         {
                             ImGui.Indent();
 
                             ImGui.AlignTextToFramePadding();
-                            ImGui.Text("Main Window: ");
+                            ImGui.Text(AppStrings.GetLocalized("Settings_PinnedWindowOpacities_MainWindow"));
                             ImGui.SetNextItemWidth(-1);
                             ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, ImGui.GetColorU32(ImGuiCol.FrameBgHovered, 0.55f));
                             ImGui.PushStyleColor(ImGuiCol.FrameBgActive, ImGui.GetColorU32(ImGuiCol.FrameBgActive, 0.55f));
@@ -839,7 +834,7 @@ namespace BPSR_ZDPS.Windows
                             ImGui.PopStyleColor(2);
                             ImGui.Indent();
                             ImGui.BeginDisabled(true);
-                            ImGui.TextWrapped("How transparent the Main Window is while pinned.");
+                            ImGui.TextWrapped(AppStrings.GetLocalized("Settings_PinnedWindowOpacities_MainWindow_Desc"));
                             ImGui.EndDisabled();
                             ImGui.Unindent();
 
@@ -853,12 +848,12 @@ namespace BPSR_ZDPS.Windows
                             ImGui.PopStyleColor(2);
                             ImGui.Indent();
                             ImGui.BeginDisabled(true);
-                            ImGui.TextWrapped("How transparent the Main Window Background is. Applied even when not pinned.");
+                            ImGui.TextWrapped(AppStrings.GetLocalized("Settings_PinnedWindowOpacities_MainWindowBackground_Desc"));
                             ImGui.EndDisabled();
                             ImGui.Unindent();
 
                             ImGui.AlignTextToFramePadding();
-                            ImGui.Text("Cooldown Priority Tracker Window: ");
+                            ImGui.Text(AppStrings.GetLocalized("Settings_PinnedWindowOpacities_CooldownTrackerWindow"));
                             ImGui.SetNextItemWidth(-1);
                             ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, ImGui.GetColorU32(ImGuiCol.FrameBgHovered, 0.55f));
                             ImGui.PushStyleColor(ImGuiCol.FrameBgActive, ImGui.GetColorU32(ImGuiCol.FrameBgActive, 0.55f));
@@ -869,12 +864,12 @@ namespace BPSR_ZDPS.Windows
                             ImGui.PopStyleColor(2);
                             ImGui.Indent();
                             ImGui.BeginDisabled(true);
-                            ImGui.TextWrapped("How transparent the Cooldown Priority Tracker Window is while pinned.");
+                            ImGui.TextWrapped(AppStrings.GetLocalized("Settings_PinnedWindowOpacities_CooldownTrackerWindow_Desc"));
                             ImGui.EndDisabled();
                             ImGui.Unindent();
 
                             ImGui.AlignTextToFramePadding();
-                            ImGui.Text("Entity Cache Viewer Window: ");
+                            ImGui.Text(AppStrings.GetLocalized("Settings_PinnedWindowOpacities_EntityCacheViewerWindow"));
                             ImGui.SetNextItemWidth(-1);
                             ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, ImGui.GetColorU32(ImGuiCol.FrameBgHovered, 0.55f));
                             ImGui.PushStyleColor(ImGuiCol.FrameBgActive, ImGui.GetColorU32(ImGuiCol.FrameBgActive, 0.55f));
@@ -885,7 +880,7 @@ namespace BPSR_ZDPS.Windows
                             ImGui.PopStyleColor(2);
                             ImGui.Indent();
                             ImGui.BeginDisabled(true);
-                            ImGui.TextWrapped("How transparent the Entity Cache Viewer Window is while pinned.");
+                            ImGui.TextWrapped(AppStrings.GetLocalized("Settings_PinnedWindowOpacities_EntityCacheViewerWindow_Desc"));
                             ImGui.EndDisabled();
                             ImGui.Unindent();
 
@@ -896,7 +891,7 @@ namespace BPSR_ZDPS.Windows
                                 ImGui.Indent();
 
                                 ImGui.AlignTextToFramePadding();
-                                ImGui.Text("Spawn Tracker Window: ");
+                                ImGui.Text(AppStrings.GetLocalized("Settings_PinnedWindowOpacities_SpawnTrackerWindow"));
                                 ImGui.SetNextItemWidth(-1);
                                 ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, ImGui.GetColorU32(ImGuiCol.FrameBgHovered, 0.55f));
                                 ImGui.PushStyleColor(ImGuiCol.FrameBgActive, ImGui.GetColorU32(ImGuiCol.FrameBgActive, 0.55f));
@@ -907,7 +902,7 @@ namespace BPSR_ZDPS.Windows
                                 ImGui.PopStyleColor(2);
                                 ImGui.Indent();
                                 ImGui.BeginDisabled(true);
-                                ImGui.TextWrapped("How transparent the Spawn Tracker Window is while pinned.");
+                                ImGui.TextWrapped(AppStrings.GetLocalized("Settings_PinnedWindowOpacities_SpawnTrackerWindow_Desc"));
                                 ImGui.EndDisabled();
                                 ImGui.Unindent();
 
@@ -917,12 +912,12 @@ namespace BPSR_ZDPS.Windows
                             ImGui.Unindent();
                         }
 
-                        if (ImGui.CollapsingHeader("Window Scales"))
+                        if (ImGui.CollapsingHeader(AppStrings.GetLocalized("Settings_WindowScales")))
                         {
                             ImGui.Indent();
 
                             ImGui.AlignTextToFramePadding();
-                            ImGui.Text("Meter Bar Scale: ");
+                            ImGui.Text(AppStrings.GetLocalized("Settings_WindowScales_MeterBarScale"));
                             ImGui.SetNextItemWidth(-1);
                             ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, ImGui.GetColorU32(ImGuiCol.FrameBgHovered, 0.55f));
                             ImGui.PushStyleColor(ImGuiCol.FrameBgActive, ImGui.GetColorU32(ImGuiCol.FrameBgActive, 0.55f));
@@ -933,7 +928,7 @@ namespace BPSR_ZDPS.Windows
                             ImGui.PopStyleColor(2);
                             ImGui.Indent();
                             ImGui.BeginDisabled(true);
-                            ImGui.TextWrapped("Scaling for how large the bars in the meter windows should be. 100%% is the default scale.");
+                            ImGui.TextWrapped(AppStrings.GetLocalized("Settings_WindowScales_MeterBarScale_Desc"));
                             ImGui.EndDisabled();
                             ImGui.Unindent();
 
@@ -944,7 +939,7 @@ namespace BPSR_ZDPS.Windows
                                 ImGui.Indent();
 
                                 ImGui.AlignTextToFramePadding();
-                                ImGui.Text("Spawn Tracker Text Scale: ");
+                                ImGui.Text(AppStrings.GetLocalized("Settings_WindowScales_SpawnTrackerTextScale"));
                                 ImGui.SetNextItemWidth(-1);
                                 ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, ImGui.GetColorU32(ImGuiCol.FrameBgHovered, 0.55f));
                                 ImGui.PushStyleColor(ImGuiCol.FrameBgActive, ImGui.GetColorU32(ImGuiCol.FrameBgActive, 0.55f));
@@ -955,12 +950,12 @@ namespace BPSR_ZDPS.Windows
                                 ImGui.PopStyleColor(2);
                                 ImGui.Indent();
                                 ImGui.BeginDisabled(true);
-                                ImGui.TextWrapped("Scaling for how the text in the Spawn Tracker window should be. 100%% is the default scale.");
+                                ImGui.TextWrapped(AppStrings.GetLocalized("Settings_WindowScales_SpawnTrackerTextScale_Desc"));
                                 ImGui.EndDisabled();
                                 ImGui.Unindent();
 
                                 ImGui.AlignTextToFramePadding();
-                                ImGui.Text("Spawn Tracker Line Scale: ");
+                                ImGui.Text(AppStrings.GetLocalized("Settings_WindowScales_SpawnTrackerLineScale"));
                                 ImGui.SetNextItemWidth(-1);
                                 ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, ImGui.GetColorU32(ImGuiCol.FrameBgHovered, 0.55f));
                                 ImGui.PushStyleColor(ImGuiCol.FrameBgActive, ImGui.GetColorU32(ImGuiCol.FrameBgActive, 0.55f));
@@ -971,7 +966,7 @@ namespace BPSR_ZDPS.Windows
                                 ImGui.PopStyleColor(2);
                                 ImGui.Indent();
                                 ImGui.BeginDisabled(true);
-                                ImGui.TextWrapped("Scaling for how large the Line (channel) bars in the Spawn Tracker window should be. 100%% is the default scale.");
+                                ImGui.TextWrapped(AppStrings.GetLocalized("Settings_WindowScales_SpawnTrackerLineScale_Desc"));
                                 ImGui.EndDisabled();
                                 ImGui.Unindent();
 
@@ -981,60 +976,60 @@ namespace BPSR_ZDPS.Windows
                             ImGui.Unindent();
                         }
 
-                        if(ImGui.CollapsingHeader("Meter Settings"))
+                        if(ImGui.CollapsingHeader(AppStrings.GetLocalized("Settings_MeterSettings")))
                         {
                             ImGui.Indent();
 
                             ImGui.SeparatorText("Tanking");
 
                             ImGui.AlignTextToFramePadding();
-                            ImGui.Text("Show Deaths: ");
+                            ImGui.Text(AppStrings.GetLocalized("Settings_MeterSettings_TankingShowDeaths"));
                             ImGui.SameLine();
                             ImGui.Checkbox("##MeterSettingsTankingShowDeaths", ref meterSettingsTankingShowDeaths);
                             ImGui.Indent();
                             ImGui.BeginDisabled(true);
-                            ImGui.TextWrapped("When enabled, shows a Death counter for each entry in the Tanking Meter.");
+                            ImGui.TextWrapped(AppStrings.GetLocalized("Settings_MeterSettings_TankingShowDeaths_Desc"));
                             ImGui.EndDisabled();
                             ImGui.Unindent();
 
                             ImGui.SeparatorText("NPC Taken");
 
                             ImGui.AlignTextToFramePadding();
-                            ImGui.Text("Show HP Data: ");
+                            ImGui.Text(AppStrings.GetLocalized("Settings_MeterSettings_NpcTakenShowHpData"));
                             ImGui.SameLine();
                             ImGui.Checkbox("##MeterSettingsNpcTakenShowHpData", ref meterSettingsNpcTakenShowHpData);
                             ImGui.Indent();
                             ImGui.BeginDisabled(true);
-                            ImGui.TextWrapped("When enabled, adds Current HP, Max HP, and HP Percent to each entry in the NPC Taken Meter.");
+                            ImGui.TextWrapped(AppStrings.GetLocalized("Settings_MeterSettings_NpcTakenShowHpData_Desc"));
                             ImGui.EndDisabled();
                             ImGui.Unindent();
 
                             ImGui.AlignTextToFramePadding();
-                            ImGui.Text("Hide Max HP: ");
+                            ImGui.Text(AppStrings.GetLocalized("Settings_MeterSettings_NpcTakenHideMaxHp"));
                             ImGui.SameLine();
                             ImGui.Checkbox("##MeterSettingsNpcTakenHideMaxHp", ref meterSettingsNpcTakenHideMaxHp);
                             ImGui.Indent();
                             ImGui.BeginDisabled(true);
-                            ImGui.TextWrapped("When enabled, removes the Max HP value shown.");
+                            ImGui.TextWrapped(AppStrings.GetLocalized("Settings_MeterSettings_NpcTakenHideMaxHp_Desc"));
                             ImGui.EndDisabled();
                             ImGui.Unindent();
 
                             ImGui.AlignTextToFramePadding();
-                            ImGui.Text("Show HP Percent Bar: ");
+                            ImGui.Text(AppStrings.GetLocalized("Settings_MeterSettings_NpcTakenUseHpMeter"));
                             ImGui.SameLine();
                             ImGui.Checkbox("##MeterSettingsNpcTakenUseHpMeter", ref meterSettingsNpcTakenUseHpMeter);
                             ImGui.Indent();
                             ImGui.BeginDisabled(true);
-                            ImGui.TextWrapped("When enabled, shows the current HP Percentage as a Red Bar instead of the Blue Bar that would normally show how much total damage the NPC has taken.");
+                            ImGui.TextWrapped(AppStrings.GetLocalized("Settings_MeterSettings_NpcTakenUseHpMeter_Desc"));
                             ImGui.EndDisabled();
                             ImGui.Unindent();
 
                             ImGui.Unindent();
                         }
 
-                        ImGui.SeparatorText("Window Property Resets");
+                        ImGui.SeparatorText(AppStrings.GetLocalized("Settings_Section_WindowPropertyResets"));
 
-                        if (ImGui.Button("Reset Main Window Position"))
+                        if (ImGui.Button(AppStrings.GetLocalized("Settings_ResetMainWindowPosition")))
                         {
                             var glfwMonitor = Hexa.NET.GLFW.GLFW.GetPrimaryMonitor();
                             var glfwVidMode = Hexa.NET.GLFW.GLFW.GetVideoMode(glfwMonitor);
@@ -1042,59 +1037,59 @@ namespace BPSR_ZDPS.Windows
                         }
                         ImGui.Indent();
                         ImGui.BeginDisabled(true);
-                        ImGui.TextWrapped("Resets the Main Window back to the original default center screen position on your primary monitor.");
+                        ImGui.TextWrapped(AppStrings.GetLocalized("Settings_ResetMainWindowPosition_Desc"));
                         ImGui.EndDisabled();
                         ImGui.Unindent();
 
-                        if (ImGui.Button("Reset Main Window Size"))
+                        if (ImGui.Button(AppStrings.GetLocalized("Settings_ResetMainWindowSize")))
                         {
                             mainWindow.NextWindowSize = mainWindow.DefaultWindowSize;
                         }
                         ImGui.Indent();
                         ImGui.BeginDisabled(true);
-                        ImGui.TextWrapped("Resets the Main Window back to the original size.");
+                        ImGui.TextWrapped(AppStrings.GetLocalized("Settings_ResetMainWindowSize_Desc"));
                         ImGui.EndDisabled();
                         ImGui.Unindent();
 
-                        if (ImGui.Button("Reset Raid Manager Cooldown Tracker Size"))
+                        if (ImGui.Button(AppStrings.GetLocalized("Settings_ResetRaidManagerCooldownTrackerSize")))
                         {
                             RaidManagerCooldownsWindow.ResetWindowSize = true;
                         }
                         ImGui.Indent();
                         ImGui.BeginDisabled(true);
-                        ImGui.TextWrapped("Resets the Raid Manager Cooldown Tracker window back to the original size.");
+                        ImGui.TextWrapped(AppStrings.GetLocalized("Settings_ResetRaidManagerCooldownTrackerSize_Desc"));
                         ImGui.EndDisabled();
                         ImGui.Unindent();
 
-                        if (ImGui.Button("Reset Entity Cache Viewer Size"))
+                        if (ImGui.Button(AppStrings.GetLocalized("Settings_ResetEntityCacheViewerSize")))
                         {
                             EntityCacheViewerWindow.ResetWindowSize = true;
                         }
                         ImGui.Indent();
                         ImGui.BeginDisabled(true);
-                        ImGui.TextWrapped("Resets the Entity Cache Viewer window back to the original size.");
+                        ImGui.TextWrapped(AppStrings.GetLocalized("Settings_ResetEntityCacheViewerSize_Desc"));
                         ImGui.EndDisabled();
                         ImGui.Unindent();
 
-                        if (ImGui.Button("Reset BPTimer Spawn Tracker Size"))
+                        if (ImGui.Button(AppStrings.GetLocalized("Settings_ResetBPTimerSpawnTrackerSize")))
                         {
                             SpawnTrackerWindow.ResetWindowSize = true;
                         }
                         ImGui.Indent();
                         ImGui.BeginDisabled(true);
-                        ImGui.TextWrapped("Resets the BPTimer Spawn Tracker window back to the original size.");
+                        ImGui.TextWrapped(AppStrings.GetLocalized("Settings_ResetBPTimerSpawnTrackerSize_Desc"));
                         ImGui.EndDisabled();
                         ImGui.Unindent();
 
-                        ImGui.SeparatorText("Low Performance Mode");
+                        ImGui.SeparatorText(AppStrings.GetLocalized("Settings_Section_LowPerformanceMode"));
 
                         ImGui.AlignTextToFramePadding();
-                        ImGui.Text("Low Performance Mode: ");
+                        ImGui.Text(AppStrings.GetLocalized("Settings_LowPerformanceMode"));
                         ImGui.SameLine();
                         ImGui.Checkbox("##LowPerformanceMode", ref lowPerformanceMode);
                         ImGui.Indent();
                         ImGui.BeginDisabled(true);
-                        ImGui.TextWrapped("When enabled, will force ZDPS to run at a lower rate, potentially causing stuttering UI when moving windows. Only turn this on if you experience Very High CPU usage from ZDPS.");
+                        ImGui.TextWrapped(AppStrings.GetLocalized("Settings_LowPerformanceMode_Desc"));
                         ImGui.EndDisabled();
                         ImGui.Unindent();
 
@@ -1105,7 +1100,7 @@ namespace BPSR_ZDPS.Windows
                             maxSyncRate = allowedSyncRates.Last().Key;
                         }
                         ImGui.AlignTextToFramePadding();
-                        ImGui.Text("ZDPS Refresh Rate (Alternate Performance Tuning): ");
+                        ImGui.Text(AppStrings.GetLocalized("Settings_ZDPSRefreshRate"));
                         ImGui.SetNextItemWidth(-1);
                         ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, ImGui.GetColorU32(ImGuiCol.FrameBgHovered, 0.55f));
                         ImGui.PushStyleColor(ImGuiCol.FrameBgActive, ImGui.GetColorU32(ImGuiCol.FrameBgActive, 0.55f));
@@ -1116,8 +1111,8 @@ namespace BPSR_ZDPS.Windows
                         ImGui.PopStyleColor(2);
                         ImGui.Indent();
                         ImGui.BeginDisabled(true);
-                        ImGui.TextWrapped("Set the UI refresh rate of ZDPS. Setting this below 55hz will likely cause UI stuttering. Changes to this setting are applied and saved in real-time.");
-                        ImGui.TextWrapped("Note: Setting this as close to 60hz as possible is recommended for all users.");
+                        ImGui.TextWrapped(AppStrings.GetLocalized("Settings_ZDPSRefreshRate_Desc1"));
+                        ImGui.TextWrapped(AppStrings.GetLocalized("Settings_ZDPSRefreshRate_Desc2"));
                         if (fpsUpdateTracker >= 0.5)
                         {
                             currentFps = Math.Round(1 / io.DeltaTime, 1);
@@ -1127,22 +1122,22 @@ namespace BPSR_ZDPS.Windows
                         {
                             fpsUpdateTracker += io.DeltaTime;
                         }
-                        ImGui.TextUnformatted($"Estimated Current FPS (from Delta Time): {currentFps}");
+                        ImGui.TextUnformatted(string.Format(AppStrings.GetLocalized("Settings_ZDPSRefreshRate_EstimatedFPS"), currentFps));
                         ImGui.EndDisabled();
                         ImGui.Unindent();
                         ImGui.EndDisabled();
 
                         ShowRestartRequiredNotice(Settings.Instance.EnableGDIBackBufferCopyCompatibility != enableGDIBackBufferCopyCompatibility, "Enable GDI Back Buffer Copy Compatibility");
                         ImGui.AlignTextToFramePadding();
-                        ImGui.Text("Enable GDI Back Buffer Copy Compatibility: ");
+                        ImGui.Text(AppStrings.GetLocalized("Settings_EnableGDIBackBufferCopyCompatibility"));
                         ImGui.SameLine();
                         ImGui.Checkbox("##EnableGDIBackBufferCopyCompatibility", ref enableGDIBackBufferCopyCompatibility);
                         ImGui.Indent();
                         ImGui.BeginDisabled(true);
-                        ImGui.TextUnformatted("(OBS BitBlt Capture Compatibility Mode)");
-                        ImGui.TextWrapped("When enabled, Screen Recording programs, like OBS, can perform 'Window Captures' on ZDPS using the (Default) 'BitBlt Capture Method'.");
-                        ImGui.TextWrapped("Note: This uses more GPU resources to perform. If this is disabled, 'Desktop Captures' and the 'Window Capture Method' labeled 'Windows 10/11' will still function without issue.");
-                        ImGui.TextWrapped("Note: This setting requires a ZDPS restart to fully take effect.");
+                        ImGui.TextUnformatted(AppStrings.GetLocalized("Settings_EnableGDIBackBufferCopyCompatibility_Mode"));
+                        ImGui.TextWrapped(AppStrings.GetLocalized("Settings_EnableGDIBackBufferCopyCompatibility_Desc1"));
+                        ImGui.TextWrapped(AppStrings.GetLocalized("Settings_EnableGDIBackBufferCopyCompatibility_Desc2"));
+                        ImGui.TextWrapped(AppStrings.GetLocalized("Settings_EnableGDIBackBufferCopyCompatibility_Desc3"));
                         ImGui.EndDisabled();
                         ImGui.Unindent();
 
@@ -1150,14 +1145,14 @@ namespace BPSR_ZDPS.Windows
                         ImGui.EndTabItem();
                     }
 
-                    if (ImGui.BeginTabItem("Matchmaking"))
+                    if (ImGui.BeginTabItem(AppStrings.GetLocalized("Settings_Tab_Matchmaking")))
                     {
                         var contentRegionAvail = ImGui.GetContentRegionAvail();
                         ImGui.BeginChild("##MatchmakingTabContent", new Vector2(contentRegionAvail.X, contentRegionAvail.Y - 56), ImGuiChildFlags.Borders);
 
-                        ImGui.SeparatorText("Matchmaking");
+                        ImGui.SeparatorText(AppStrings.GetLocalized("Settings_Tab_Matchmaking"));
                         ImGui.AlignTextToFramePadding();
-                        ImGui.Text("Play Notification Sound On Matchmake: ");
+                        ImGui.Text(AppStrings.GetLocalized("Settings_PlayNotificationSoundOnMatchmake"));
                         ImGui.SameLine();
                         ImGui.Checkbox("##PlayNotificationSoundOnMatchmake", ref playNotificationSoundOnMatchmake);
                         ImGui.Indent();
@@ -1221,7 +1216,7 @@ namespace BPSR_ZDPS.Windows
                         ImGui.EndDisabled();
 
                         ImGui.AlignTextToFramePadding();
-                        ImGui.Text("Play Notification Sound On Ready Check: ");
+                        ImGui.Text(AppStrings.GetLocalized("Settings_PlayNotificationSoundOnReadyCheck"));
                         ImGui.SameLine();
                         ImGui.Checkbox("##PlayNotificationSoundOnReadyCheck", ref playNotificationSoundOnReadyCheck);
                         ImGui.Indent();
@@ -1288,31 +1283,31 @@ namespace BPSR_ZDPS.Windows
                         ImGui.EndTabItem();
                     }
 
-                    if (ImGui.BeginTabItem("Integrations"))
+                    if (ImGui.BeginTabItem(AppStrings.GetLocalized("Settings_Tab_Integrations")))
                     {
                         var contentRegionAvail = ImGui.GetContentRegionAvail();
                         ImGui.BeginChild("##IntegrationsTabContent", new Vector2(contentRegionAvail.X, contentRegionAvail.Y - 56), ImGuiChildFlags.Borders);
 
-                        ImGui.SeparatorText("Integrations");
+                        ImGui.SeparatorText(AppStrings.GetLocalized("Settings_Tab_Integrations"));
 
                         ShowGenericImportantNotice(!useAutomaticWipeDetection, "AutoWipeDetectionDisabled", "[Use Automatic Wipe Detection] is currently Disabled. Reports may be incorrect until it is Enabled again.");
                         ShowGenericImportantNotice(skipTeleportStateCheckInAutomaticWipeDetection, "SkipTeleportStateCheckInAutomaticWipeDetectionEnabled", "[Skip Teleport State Check In Automatic Wipe Detection] is currently Enabled. Reports may be incorrect until it is Disabled again.");
                         ShowGenericImportantNotice(!splitEncountersOnNewPhases, "SplitEncountersOnNewPhasesDisabled", "[Split Encounters On New Phases] is currently Disabled. Reports may be incorrect until it is Enabled again.");
 
                         ImGui.AlignTextToFramePadding();
-                        ImGui.Text("Save Encounter Report To File: ");
+                        ImGui.Text(AppStrings.GetLocalized("Settings_SaveEncounterReportToFile"));
                         ImGui.SameLine();
                         ImGui.Checkbox("##SaveEncounterReportToFile", ref saveEncounterReportToFile);
                         ImGui.Indent();
                         ImGui.BeginDisabled(true);
-                        ImGui.TextWrapped("When enabled, writes a report file to the Reports folder located next to ZDPS.");
+                        ImGui.TextWrapped(AppStrings.GetLocalized("Settings_SaveEncounterReportToFile_Desc"));
                         ImGui.EndDisabled();
                         ImGui.Unindent();
 
                         ImGui.BeginDisabled(!saveEncounterReportToFile);
                         ImGui.Indent();
                         ImGui.AlignTextToFramePadding();
-                        ImGui.Text("Report File Retention Policy: ");
+                        ImGui.Text(AppStrings.GetLocalized("Settings_ReportFileRetentionPolicy"));
                         ImGui.SameLine();
                         ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, ImGui.GetColorU32(ImGuiCol.FrameBgHovered, 0.55f));
                         ImGui.PushStyleColor(ImGuiCol.FrameBgActive, ImGui.GetColorU32(ImGuiCol.FrameBgActive, 0.55f));
@@ -1321,14 +1316,14 @@ namespace BPSR_ZDPS.Windows
                         ImGui.PopStyleColor(2);
                         ImGui.Indent();
                         ImGui.BeginDisabled(true);
-                        ImGui.TextWrapped("How long to keep locally saved Report files for. When not set to Keep Forever, expired data is automatically deleted on application close.");
+                        ImGui.TextWrapped(AppStrings.GetLocalized("Settings_ReportFileRetentionPolicy_Desc"));
                         ImGui.EndDisabled();
                         ImGui.Unindent();
                         ImGui.Unindent();
                         ImGui.EndDisabled();
 
                         ImGui.AlignTextToFramePadding();
-                        ImGui.Text("Minimum Player Count To Create Report: ");
+                        ImGui.Text(AppStrings.GetLocalized("Settings_MinimumPlayerCountToCreateReport"));
                         ImGui.SameLine();
                         ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, ImGui.GetColorU32(ImGuiCol.FrameBgHovered, 0.55f));
                         ImGui.PushStyleColor(ImGuiCol.FrameBgActive, ImGui.GetColorU32(ImGuiCol.FrameBgActive, 0.55f));
@@ -1337,24 +1332,24 @@ namespace BPSR_ZDPS.Windows
                         ImGui.PopStyleColor(2);
                         ImGui.Indent();
                         ImGui.BeginDisabled(true);
-                        ImGui.TextWrapped("The number of players required in an Encounter to create a report for. This applies to both local saving and Webhook sending.");
+                        ImGui.TextWrapped(AppStrings.GetLocalized("Settings_MinimumPlayerCountToCreateReport_Desc"));
                         ImGui.EndDisabled();
                         ImGui.Unindent();
 
                         ImGui.AlignTextToFramePadding();
-                        ImGui.Text("Always Create Report At Dungeon End: ");
+                        ImGui.Text(AppStrings.GetLocalized("Settings_AlwaysCreateReportAtDungeonEnd"));
                         ImGui.SameLine();
                         ImGui.Checkbox("##AlwaysCreateReportAtDungeonEnd", ref alwaysCreateReportAtDungeonEnd);
                         ImGui.Indent();
                         ImGui.BeginDisabled(true);
-                        ImGui.TextWrapped("When enabled, Reports are created at the end of a Dungeon if one was not created already.\nIf this is disabled Reports may not be created if a Dungeon did not end with a boss fight.");
+                        ImGui.TextWrapped(AppStrings.GetLocalized("Settings_AlwaysCreateReportAtDungeonEnd_Desc"));
                         ImGui.EndDisabled();
                         ImGui.Unindent();
 
-                        ImGui.SeparatorText("ZDPS Report Webhooks");
+                        ImGui.SeparatorText(AppStrings.GetLocalized("Settings_Section_ZDPSReportWebhooks"));
 
                         ImGui.AlignTextToFramePadding();
-                        ImGui.TextUnformatted("Webhook Mode: ");
+                        ImGui.TextUnformatted(AppStrings.GetLocalized("Settings_WebhookMode"));
                         ImGui.SameLine();
                         ImGui.SetNextItemWidth(-1);
 
@@ -1401,19 +1396,19 @@ namespace BPSR_ZDPS.Windows
                         }
                         ImGui.Indent();
                         ImGui.BeginDisabled(true);
-                        ImGui.TextWrapped("Select the type of Webhook Mode you want to use for sending ZDPS Reports.\n'Discord Deduplication' is recommended if other users may be sending the same Encounter Report to the same Discord Channel at the same time to avoid duplicate messages.");
+                        ImGui.TextWrapped(AppStrings.GetLocalized("Settings_WebhookMode_Desc"));
                         ImGui.EndDisabled();
                         ImGui.Unindent();
 
                         // TODO: Maybe allow adding multiple Webhooks and toggling the enabled state of each one (should allow entering a friendly name next to them too)
 
                         ImGui.AlignTextToFramePadding();
-                        ImGui.Text($"Send Encounter Reports To {reportsModeName}: ");
+                        ImGui.Text(AppStrings.GetLocalized("Settings_SendEncounterReportsToDiscordDeduplication"));
                         ImGui.SameLine();
                         ImGui.Checkbox("##WebhookReportsEnabled", ref webhookReportsEnabled);
                         ImGui.Indent();
                         ImGui.BeginDisabled(true);
-                        ImGui.TextWrapped($"When enabled, sends an Encounter Report to the given {reportsModeName} server.");
+                        ImGui.TextWrapped(string.Format(AppStrings.GetLocalized("Settings_SendEncounterReportsToDiscordDeduplication_Desc"), reportsModeName));
                         ImGui.EndDisabled();
                         ImGui.Unindent();
 
@@ -1428,13 +1423,13 @@ namespace BPSR_ZDPS.Windows
                                 if (webhookReportsMode == EWebhookReportsMode.DiscordDeduplication || webhookReportsMode == EWebhookReportsMode.FallbackDiscordDeduplication)
                                 {
                                     ImGui.AlignTextToFramePadding();
-                                    ImGui.Text("Deduplication Server URL: ");
+                                    ImGui.Text(AppStrings.GetLocalized("Settings_DeduplicationServerURL"));
                                     ImGui.SameLine();
                                     ImGui.SetNextItemWidth(-1);
                                     ImGui.InputText("##WebhookReportsDeduplicationServerHost", ref webhookReportsDeduplicationServerUrl, 512);
                                     ImGui.Indent();
                                     ImGui.BeginDisabled(true);
-                                    ImGui.TextWrapped("The Discord Deduplication Server URL to prevent duplicate reports with.");
+                                    ImGui.TextWrapped(AppStrings.GetLocalized("Settings_DeduplicationServerURL_Desc"));
                                     if (webhookReportsMode == EWebhookReportsMode.FallbackDiscordDeduplication)
                                     {
                                         ImGui.TextWrapped("Note: The server must have Fallback support Enabled for this to work as expected since it will handle sending the Discord request for you.");
@@ -1444,7 +1439,7 @@ namespace BPSR_ZDPS.Windows
                                 }
 
                                 ImGui.AlignTextToFramePadding();
-                                ImGui.Text("Webhook URL: ");
+                                ImGui.Text(AppStrings.GetLocalized("Settings_WebhookURL"));
                                 ImGui.SameLine();
                                 ImGui.SetNextItemWidth(-1);
                                 if (ImGui.InputText("##WebhookReportsDiscordUrl", ref webhookReportsDiscordUrl, 512))
@@ -1472,19 +1467,19 @@ namespace BPSR_ZDPS.Windows
 
                                 ImGui.Indent();
                                 ImGui.BeginDisabled(true);
-                                ImGui.TextWrapped("The Discord Webhook URL to send reports to.");
+                                ImGui.TextWrapped(AppStrings.GetLocalized("Settings_WebhookURL_Discord_Desc"));
                                 ImGui.EndDisabled();
                                 ImGui.Unindent();
                                 break;
                             case EWebhookReportsMode.Custom:
                                 ImGui.AlignTextToFramePadding();
-                                ImGui.Text("Webhook URL: ");
+                                ImGui.Text(AppStrings.GetLocalized("Settings_WebhookURL"));
                                 ImGui.SameLine();
                                 ImGui.SetNextItemWidth(-1);
                                 ImGui.InputText("##WebhookReportsCustomUrl", ref webhookReportsCustomUrl, 512);
                                 ImGui.Indent();
                                 ImGui.BeginDisabled(true);
-                                ImGui.TextWrapped("The Custom URL to send reports to.");
+                                ImGui.TextWrapped(AppStrings.GetLocalized("Settings_WebhookURL_Custom_Desc"));
                                 ImGui.EndDisabled();
                                 ImGui.Unindent();
                                 break;
@@ -1496,12 +1491,12 @@ namespace BPSR_ZDPS.Windows
                         if (ImGui.CollapsingHeader("BPTimer", ImGuiTreeNodeFlags.DefaultOpen))
                         {
                             ImGui.AlignTextToFramePadding();
-                            ImGui.Text("BPTimer Enabled: ");
+                            ImGui.Text(AppStrings.GetLocalized("Settings_BPTimer_Enabled"));
                             ImGui.SameLine();
                             ImGui.Checkbox("##ExternalBPTimerEnabled", ref externalBPTimerEnabled);
                             ImGui.Indent();
                             ImGui.BeginDisabled(true);
-                            ImGui.TextWrapped("When enabled, allows sending reports back to BPTimer.com.");
+                            ImGui.TextWrapped(AppStrings.GetLocalized("Settings_BPTimer_Enabled_Desc"));
                             bool hasBPTimerReports = externalBPTimerFieldBossHpReportsEnabled;
                             if (!hasBPTimerReports)
                             {
@@ -1533,22 +1528,22 @@ namespace BPSR_ZDPS.Windows
                             ImGui.Indent();
 
                             ImGui.AlignTextToFramePadding();
-                            ImGui.Text("Include Own Character Data In Report: ");
+                            ImGui.Text(AppStrings.GetLocalized("Settings_IncludeOwnCharacterDataInReport"));
                             ImGui.SameLine();
                             ImGui.Checkbox("##ExternalBPTimerIncludeCharacterId", ref externalBPTimerIncludeCharacterId);
                             ImGui.Indent();
                             ImGui.BeginDisabled(true);
-                            ImGui.TextWrapped("When enabled, your Character UID will be included in the reported data.");
+                            ImGui.TextWrapped(AppStrings.GetLocalized("Settings_IncludeOwnCharacterDataInReport_Desc"));
                             ImGui.EndDisabled();
                             ImGui.Unindent();
 
                             ImGui.AlignTextToFramePadding();
-                            ImGui.Text("BPTimer Field Boss HP Reports: ");
+                            ImGui.Text(AppStrings.GetLocalized("Settings_BPTimerFieldBossHPReports"));
                             ImGui.SameLine();
                             ImGui.Checkbox("##ExternalBPTimerFieldBossHpReportsEnabled", ref externalBPTimerFieldBossHpReportsEnabled);
                             ImGui.Indent();
                             ImGui.BeginDisabled(true);
-                            ImGui.TextWrapped("When enabled, reports Field Boss (and Magical Creature) HP data back to BPTimer.com.");
+                            ImGui.TextWrapped(AppStrings.GetLocalized("Settings_BPTimerFieldBossHPReports_Desc"));
                             ImGui.EndDisabled();
                             ImGui.Unindent();
 
@@ -1560,67 +1555,67 @@ namespace BPSR_ZDPS.Windows
                         ImGui.EndTabItem();
                     }
 
-                    if (ImGui.BeginTabItem("Development"))
+                    if (ImGui.BeginTabItem(AppStrings.GetLocalized("Settings_Tab_Development")))
                     {
                         var contentRegionAvail = ImGui.GetContentRegionAvail();
                         ImGui.BeginChild("##DevelopmentTabContent", new Vector2(contentRegionAvail.X, contentRegionAvail.Y - 56), ImGuiChildFlags.Borders);
 
-                        ImGui.SeparatorText("Development");
-                        if (ImGui.Button("Reload DataTables"))
+                        ImGui.SeparatorText(AppStrings.GetLocalized("Settings_Tab_Development"));
+                        if (ImGui.Button(AppStrings.GetLocalized("Settings_Dev_ReloadDataTables")))
                         {
                             AppState.LoadDataTables();
                         }
                         ImGui.Indent();
                         ImGui.BeginDisabled(true);
-                        ImGui.TextWrapped("Does not update most existing values - mainly works for data set in new Encounters.");
+                        ImGui.TextWrapped(AppStrings.GetLocalized("Settings_Dev_ReloadDataTables_Desc"));
                         ImGui.EndDisabled();
                         ImGui.Unindent();
 
-                        if (ImGui.Button("Restart Capture"))
+                        if (ImGui.Button(AppStrings.GetLocalized("Settings_Dev_RestartCapture")))
                         {
                             MessageManager.StopCapturing();
                             MessageManager.InitializeCapturing();
                         }
                         ImGui.Indent();
                         ImGui.BeginDisabled(true);
-                        ImGui.TextWrapped("Turns the MessageManager off and on to resolve issues of stalled data.");
+                        ImGui.TextWrapped(AppStrings.GetLocalized("Settings_Dev_RestartCapture_Desc"));
                         ImGui.EndDisabled();
                         ImGui.Unindent();
 
-                        if (ImGui.Button("Reload Module Save"))
+                        if (ImGui.Button(AppStrings.GetLocalized("Settings_Dev_ReloadModuleSave")))
                         {
                             ModuleSolver.Init();
                         }
                         ImGui.Indent();
                         ImGui.BeginDisabled(true);
-                        ImGui.TextWrapped("Reloads your module inventory from the 'ModulesSaveData.json' file.");
+                        ImGui.TextWrapped(AppStrings.GetLocalized("Settings_Dev_ReloadModuleSave_Desc"));
                         ImGui.EndDisabled();
                         ImGui.Unindent();
 
                         ShowRestartRequiredNotice(Settings.Instance.LogToFile != logToFile, "Write Debug Log To File");
                         ImGui.AlignTextToFramePadding();
-                        ImGui.Text("Write Debug Log To File: ");
+                        ImGui.Text(AppStrings.GetLocalized("Settings_Dev_WriteDebugLogToFile"));
                         ImGui.SameLine();
                         ImGui.Checkbox("##LogToFile", ref logToFile);
                         ImGui.Indent();
                         ImGui.BeginDisabled(true);
-                        ImGui.TextWrapped("When enabled, writes a debug log for ZDPS (ZDPS_log.txt). Applies after restarting ZDPS.");
+                        ImGui.TextWrapped(AppStrings.GetLocalized("Settings_Dev_WriteDebugLogToFile_Desc"));
                         ImGui.EndDisabled();
                         ImGui.Unindent();
 
                         ShowRestartRequiredNotice(Settings.Instance.AggressiveExceptionDebugLogging != aggressiveExceptionDebugLogging, "Aggressive Exception Debug Logging");
                         ImGui.AlignTextToFramePadding();
-                        ImGui.Text("Aggressive Exception Debug Logging: ");
+                        ImGui.Text(AppStrings.GetLocalized("Settings_AggressiveExceptionDebugLogging"));
                         ImGui.SameLine();
                         ImGui.Checkbox("##AggressiveExceptionDebugLogging", ref aggressiveExceptionDebugLogging);
                         ImGui.Indent();
                         ImGui.BeginDisabled(true);
-                        ImGui.TextWrapped("When enabled, captures more exception data for when systems break or ZDPS crashes. Applies after restarting ZDPS.");
-                        ImGui.TextWrapped("Note: This has a chance to make ZDPS run slower.\nOnly turn this on when you encounter broken systems or crashes. Reproduce the issue to have a more useful ZDPS_log.txt and then turn off this setting.");
+                        ImGui.TextWrapped(AppStrings.GetLocalized("Settings_Dev_AggressiveExceptionDebugLogging_Desc1"));
+                        ImGui.TextWrapped(AppStrings.GetLocalized("Settings_Dev_AggressiveExceptionDebugLogging_Desc2"));
                         ImGui.EndDisabled();
                         ImGui.Unindent();
 
-                        if (ImGui.Button("Open GitHub Project Page"))
+                        if (ImGui.Button(AppStrings.GetLocalized("Settings_Dev_OpenGitHubProjectPage")))
                         {
                             System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo()
                             {
@@ -1630,7 +1625,7 @@ namespace BPSR_ZDPS.Windows
                         }
                         ImGui.Indent();
                         ImGui.BeginDisabled(true);
-                        ImGui.TextWrapped($"Open a web page to the GitHub Project located at\n{Settings.Instance.ZDPSWebsiteURL}");
+                        ImGui.TextWrapped(string.Format(AppStrings.GetLocalized("Settings_Dev_OpenGitHubProjectPage_Desc"), Settings.Instance.ZDPSWebsiteURL));
                         ImGui.EndDisabled();
                         ImGui.Unindent();
 
@@ -1643,7 +1638,7 @@ namespace BPSR_ZDPS.Windows
 
                 ImGui.NewLine();
                 float buttonWidth = 120;
-                if (ImGui.Button("Save", new Vector2(buttonWidth, 0)))
+                if (ImGui.Button(AppStrings.GetLocalized("Settings_SaveBtn"), new Vector2(buttonWidth, 0)))
                 {
                     Save(mainWindow);
 
@@ -1652,7 +1647,7 @@ namespace BPSR_ZDPS.Windows
 
                 ImGui.SameLine();
                 ImGui.SetCursorPosX(ImGui.GetCursorPosX() + ImGui.GetContentRegionAvail().X - buttonWidth);
-                if (ImGui.Button("Close", new Vector2(buttonWidth, 0)))
+                if (ImGui.Button(AppStrings.GetLocalized("Settings_CloseBtn"), new Vector2(buttonWidth, 0)))
                 {
                     SelectedNetworkDeviceIdx = PreviousSelectedNetworkDeviceIdx;
 

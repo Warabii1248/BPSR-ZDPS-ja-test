@@ -202,29 +202,29 @@ namespace BPSR_ZDPS.Windows
                         }
                     }
 
-                    ImGui.TextUnformatted($"Name: {LoadedEntity.Name}");
-                    ImGui.TextUnformatted($"Level: {LoadedEntity.Level}");
+                    ImGui.TextUnformatted($"{AppStrings.GetLocalized("EntityInspector_Summary_Name")}{LoadedEntity.Name}");
+                    ImGui.TextUnformatted($"{AppStrings.GetLocalized("EntityInspector_Summary_Level")}{LoadedEntity.Level}");
                     if (LoadedEntity.SeasonLevel > 0)
                     {
                         ImGui.SameLine();
                         ImGui.TextUnformatted($"(+{LoadedEntity.SeasonLevel})");
-                        ImGui.SetItemTooltip("Season Level");
+                        ImGui.SetItemTooltip(AppStrings.GetLocalized("EntityInspector_Summary_SeasonLevel_Tooltip"));
                     }
-                    ImGui.TextUnformatted($"Ability Score: {LoadedEntity.AbilityScore}");
+                    ImGui.TextUnformatted($"{AppStrings.GetLocalized("EntityInspector_Summary_AbilityScore")}{LoadedEntity.AbilityScore}");
                     if (LoadedEntity.SeasonStrength > 0)
                     {
                         ImGui.SameLine();
                         ImGui.TextUnformatted($"(+{LoadedEntity.SeasonStrength})");
-                        ImGui.SetItemTooltip("Season Strength");
+                        ImGui.SetItemTooltip(AppStrings.GetLocalized("EntityInspector_Summary_SeasonStrength_Tooltip"));
                     }
-                    ImGui.TextUnformatted($"Profession: {LoadedEntity.Profession}");
-                    ImGui.TextUnformatted($"ProfessionSpec: {LoadedEntity.SubProfession}");
+                    ImGui.TextUnformatted($"{AppStrings.GetLocalized("EntityInspector_Summary_Profession")}{LoadedEntity.Profession}");
+                    ImGui.TextUnformatted($"{AppStrings.GetLocalized("EntityInspector_Summary_ProfessionSpec")}{LoadedEntity.SubProfession}");
                     ImGui.AlignTextToFramePadding();
-                    ImGui.TextUnformatted($"EntityType: {LoadedEntity.EntityType.ToString()}");
+                    ImGui.TextUnformatted($"{AppStrings.GetLocalized("EntityInspector_Summary_EntityType")}{LoadedEntity.EntityType.ToString()}");
                     if (LoadedEntity.EntityType == Zproto.EEntityType.EntChar)
                     {
                         ImGui.SameLine();
-                        if (ImGui.Button("View Gear"))
+                        if (ImGui.Button(AppStrings.GetLocalized("EntityInspector_Summary_ViewGear")))
                         {
                             GearInspector.LoadEntity(LoadedEntity);
                             GearInspector.Open();
