@@ -395,8 +395,16 @@ namespace BPSR_ZDPS
             // Setting Segoe to be the default application font (though the other fonts will be used if their glyphs are required)
             ImGui.AddFontDefault(HelperMethods.Fonts["Segoe"].ContainerAtlas);
 
-            // Note: Segoe-Bold will not support multi-language when it's used
             HelperMethods.Fonts.Add("Segoe-Bold", io.Fonts.AddFontFromFileTTF(@"C:\Windows\Fonts\segoeuib.ttf", 18.0f));
+
+            // Merge Japanese glyphs into Segoe-Bold for multi-language support
+            ff = new FontFile(@"C:\Windows\Fonts\YuGothB.ttc", new GlyphRange[] {
+                new GlyphRange(0x3000, 0x30FF),  // CJK Symbols, Hiragana, Katakana
+                new GlyphRange(0x4E00, 0x9FFF),  // CJK Unified Ideographs (Kanji)
+                new GlyphRange(0xFF00, 0xFFEF)   // Halfwidth and Fullwidth Forms
+            });
+            ff.BindToImGui(18.0f, true);
+            ff.Dispose();
 
             ff = new FontFile("BPSR_ZDPS.Fonts.FAS.ttf", new GlyphRange(0x0021, 0xF8FF));
             res = ff.BindToImGui(18.0f);
