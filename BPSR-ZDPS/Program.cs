@@ -376,10 +376,9 @@ namespace BPSR_ZDPS
 
             // Merging additional fonts into Segoe for multi-language support
 
-            // Japanese character supporting font (this is a bit heavy to load into memory - 5MB)
-            //ff = new FontFile("BPSR_ZDPS.Fonts.fot-seuratpron-m.otf");
+            // Japanese character supporting font - loaded from system like Segoe UI
             // Range 0x3000-0x30FF covers CJK Symbols, Hiragana, and Katakana
-            var ff = new FontFile("BPSR_ZDPS.Fonts.fot-seuratpron-m.otf", new GlyphRange(0x3000, 0x30FF));
+            var ff = new FontFile(@"C:\Windows\Fonts\YuGothM.ttc", new GlyphRange(0x3000, 0x30FF));
             var res = ff.BindToImGui(18.0f, true);
             ff.Dispose();
 
