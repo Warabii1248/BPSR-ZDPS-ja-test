@@ -1177,7 +1177,7 @@ namespace BPSR_ZDPS.Windows
                         ImGui.Checkbox("##PlayNotificationSoundOnMatchmake", ref playNotificationSoundOnMatchmake);
                         ImGui.Indent();
                         ImGui.BeginDisabled(true);
-                        ImGui.TextWrapped("When enabled, play a notification sound alert when the matchmaker finds players and is waiting for you to accept.");
+                        ImGui.TextWrapped(AppStrings.GetLocalized("Settings_PlayNotificationSoundOnMatchmake_Desc"));
                         ImGui.EndDisabled();
                         ImGui.Unindent();
 
@@ -1185,11 +1185,11 @@ namespace BPSR_ZDPS.Windows
                         ImGui.Indent();
 
                         ImGui.AlignTextToFramePadding();
-                        ImGui.Text("Matchmake Notification Sound Path: ");
+                        ImGui.Text(AppStrings.GetLocalized("Settings_MatchmakeNotificationSoundPath"));
                         ImGui.SetNextItemWidth(ImGui.GetContentRegionAvail().X - 140 - ImGui.GetStyle().ItemSpacing.X);
                         ImGui.InputText("##MatchmakeNotificationSoundPath", ref matchmakeNotificationSoundPath, 1024);
                         ImGui.SameLine();
-                        if (ImGui.Button("Browse...##MatchmakeSoundPathBrowseBtn", new Vector2(140, 0)))
+                        if (ImGui.Button(AppStrings.GetLocalized("Settings_Browse") + "##MatchmakeSoundPathBrowseBtn", new Vector2(140, 0)))
                         {
                             string defaultDir = File.Exists(matchmakeNotificationSoundPath) ? Path.GetDirectoryName(matchmakeNotificationSoundPath) : "";
 
@@ -1198,26 +1198,26 @@ namespace BPSR_ZDPS.Windows
                                 System.Diagnostics.Debug.WriteLine($"MatchmakeNotificationSoundPath = {selectedFilePath}");
                                 matchmakeNotificationSoundPath = selectedFilePath;
                             },
-                            "Select a sound file...", defaultDir, "MP3 (*.mp3)|*.mp3|WAV (*.wav)|*.wav|All Files (*.*)|*.*", 0);
+                            AppStrings.GetLocalized("Settings_SelectSoundFile"), defaultDir, "MP3 (*.mp3)|*.mp3|WAV (*.wav)|*.wav|All Files (*.*)|*.*", 0);
                         }
                         ImGui.Indent();
                         ImGui.BeginDisabled(true);
-                        ImGui.TextWrapped("File path to a custom sound file to play when the matchmake notification occurs.\nA default sound will be used if none is set or the file is invalid.\nNote: Only MP3 and WAV are supported formats.");
+                        ImGui.TextWrapped(AppStrings.GetLocalized("Settings_MatchmakeNotificationSoundPath_Desc"));
                         ImGui.EndDisabled();
                         ImGui.Unindent();
 
                         ImGui.AlignTextToFramePadding();
-                        ImGui.Text("Loop Notification Sound On Matchmake: ");
+                        ImGui.Text(AppStrings.GetLocalized("Settings_LoopNotificationSoundOnMatchmake"));
                         ImGui.SameLine();
                         ImGui.Checkbox("##loopNotificationSoundOnMatchmake", ref loopNotificationSoundOnMatchmake);
                         ImGui.Indent();
                         ImGui.BeginDisabled(true);
-                        ImGui.TextWrapped("When enabled, the notification sound will loop until you accept the queue pop or it is canceled.");
+                        ImGui.TextWrapped(AppStrings.GetLocalized("Settings_LoopNotificationSoundOnMatchmake_Desc"));
                         ImGui.EndDisabled();
                         ImGui.Unindent();
 
                         ImGui.AlignTextToFramePadding();
-                        ImGui.Text("Matchmake Notification Volume Level: ");
+                        ImGui.Text(AppStrings.GetLocalized("Settings_MatchmakeNotificationVolumeLevel"));
                         ImGui.SetNextItemWidth(-1);
                         ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, ImGui.GetColorU32(ImGuiCol.FrameBgHovered, 0.55f));
                         ImGui.PushStyleColor(ImGuiCol.FrameBgActive, ImGui.GetColorU32(ImGuiCol.FrameBgActive, 0.55f));
@@ -1228,7 +1228,7 @@ namespace BPSR_ZDPS.Windows
                         ImGui.PopStyleColor(2);
                         ImGui.Indent();
                         ImGui.BeginDisabled(true);
-                        ImGui.TextWrapped("Volume scale of the played back notification sound. 100%% is the normal sound level of the audio file. Values above 100%% may not always appear louder. If you need a louder sound, please edit your file in an external program to increase loudness.");
+                        ImGui.TextWrapped(AppStrings.GetLocalized("Settings_MatchmakeNotificationVolumeLevel_Desc"));
                         ImGui.EndDisabled();
                         ImGui.Unindent();
 
@@ -1241,7 +1241,7 @@ namespace BPSR_ZDPS.Windows
                         ImGui.Checkbox("##PlayNotificationSoundOnReadyCheck", ref playNotificationSoundOnReadyCheck);
                         ImGui.Indent();
                         ImGui.BeginDisabled(true);
-                        ImGui.TextWrapped("When enabled, play a notification sound alert when a party ready check is performed and is waiting for you to accept.");
+                        ImGui.TextWrapped(AppStrings.GetLocalized("Settings_PlayNotificationSoundOnReadyCheck_Desc"));
                         ImGui.EndDisabled();
                         ImGui.Unindent();
 
@@ -1249,11 +1249,11 @@ namespace BPSR_ZDPS.Windows
                         ImGui.Indent();
 
                         ImGui.AlignTextToFramePadding();
-                        ImGui.Text("Ready Check Notification Sound Path: ");
+                        ImGui.Text(AppStrings.GetLocalized("Settings_ReadyCheckNotificationSoundPath"));
                         ImGui.SetNextItemWidth(ImGui.GetContentRegionAvail().X - 140 - ImGui.GetStyle().ItemSpacing.X);
                         ImGui.InputText("##ReadyCheckNotificationSoundPath", ref readyCheckNotificationSoundPath, 1024);
                         ImGui.SameLine();
-                        if (ImGui.Button("Browse...##ReadyCheckSoundPathBrowseBtn", new Vector2(140, 0)))
+                        if (ImGui.Button(AppStrings.GetLocalized("Settings_Browse") + "##ReadyCheckSoundPathBrowseBtn", new Vector2(140, 0)))
                         {
                             string defaultDir = File.Exists(readyCheckNotificationSoundPath) ? Path.GetDirectoryName(readyCheckNotificationSoundPath) : "";
 
@@ -1262,26 +1262,26 @@ namespace BPSR_ZDPS.Windows
                                 System.Diagnostics.Debug.WriteLine($"ReadyCheckNotificationSoundPath = {selectedFilePath}");
                                 readyCheckNotificationSoundPath = selectedFilePath;
                             },
-                            "Select a sound file...", defaultDir, "MP3 (*.mp3)|*.mp3|WAV (*.wav)|*.wav|All Files (*.*)|*.*", 0);
+                            AppStrings.GetLocalized("Settings_SelectSoundFile"), defaultDir, "MP3 (*.mp3)|*.mp3|WAV (*.wav)|*.wav|All Files (*.*)|*.*", 0);
                         }
                         ImGui.Indent();
                         ImGui.BeginDisabled(true);
-                        ImGui.TextWrapped("File path to a custom sound file to play when the ready check notification occurs.\nA default sound will be used if none is set or the file is invalid.\nNote: Only MP3 and WAV are supported formats.");
+                        ImGui.TextWrapped(AppStrings.GetLocalized("Settings_ReadyCheckNotificationSoundPath_Desc"));
                         ImGui.EndDisabled();
                         ImGui.Unindent();
 
                         ImGui.AlignTextToFramePadding();
-                        ImGui.Text("Loop Notification Sound On Ready Check: ");
+                        ImGui.Text(AppStrings.GetLocalized("Settings_LoopNotificationSoundOnReadyCheck"));
                         ImGui.SameLine();
                         ImGui.Checkbox("##loopNotificationSoundOnReadyCheck", ref loopNotificationSoundOnReadyCheck);
                         ImGui.Indent();
                         ImGui.BeginDisabled(true);
-                        ImGui.TextWrapped("When enabled, the notification sound will loop until you respond to the ready check.");
+                        ImGui.TextWrapped(AppStrings.GetLocalized("Settings_LoopNotificationSoundOnReadyCheck_Desc"));
                         ImGui.EndDisabled();
                         ImGui.Unindent();
 
                         ImGui.AlignTextToFramePadding();
-                        ImGui.Text("Ready Check Notification Volume Level: ");
+                        ImGui.Text(AppStrings.GetLocalized("Settings_ReadyCheckNotificationVolumeLevel"));
                         ImGui.SetNextItemWidth(-1);
                         ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, ImGui.GetColorU32(ImGuiCol.FrameBgHovered, 0.55f));
                         ImGui.PushStyleColor(ImGuiCol.FrameBgActive, ImGui.GetColorU32(ImGuiCol.FrameBgActive, 0.55f));
@@ -1292,7 +1292,7 @@ namespace BPSR_ZDPS.Windows
                         ImGui.PopStyleColor(2);
                         ImGui.Indent();
                         ImGui.BeginDisabled(true);
-                        ImGui.TextWrapped("Volume scale of the played back notification sound.");
+                        ImGui.TextWrapped(AppStrings.GetLocalized("Settings_ReadyCheckNotificationVolumeLevel_Desc"));
                         ImGui.EndDisabled();
                         ImGui.Unindent();
 
