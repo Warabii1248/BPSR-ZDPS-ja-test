@@ -3178,7 +3178,7 @@ namespace BPSR_ZDPS.Windows
                                     if (eventTracker.ShowDurationText && eventTracker.ShowDurationEnded)
                                     {
                                         ImGui.PushFont(null, eventTracker.DurationTextSize);
-                                        ImGui.TextUnformatted("Duration Ended");
+                                        ImGui.TextUnformatted(AppStrings.GetLocalized("EventTracker_DurationEnded"));
                                         ImGui.PopFont();
                                     }
                                     //expiredEventData.Add(eventDataKVP.Key);
@@ -3288,17 +3288,17 @@ namespace BPSR_ZDPS.Windows
             {
                 ImGui.TextUnformatted($"The selected Container ('{ActiveTrackerContainer.ContainerName}') has {ActiveTrackerContainer.EventTrackers.Count} Tracker(s) in it.");
                 ImGui.NewLine();
-                ImGui.TextUnformatted("Are you sure you want to delete the Container?");
+                ImGui.TextUnformatted(AppStrings.GetLocalized("EventTracker_DeleteContainer_Confirm"));
                 ImGui.NewLine();
                 ImGui.Separator();
-                if (ImGui.Button("Yes", new Vector2(140, 0)))
+                if (ImGui.Button(AppStrings.GetLocalized("EventTracker_Yes"), new Vector2(140, 0)))
                 {
                     DeleteActiveContainer();
                     ImGui.CloseCurrentPopup();
                 }
                 ImGui.SameLine();
                 ImGui.SetCursorPosX(ImGui.GetCursorPosX() + ImGui.GetContentRegionAvail().X - 140);
-                if (ImGui.Button("No", new Vector2(140, 0)))
+                if (ImGui.Button(AppStrings.GetLocalized("EventTracker_No"), new Vector2(140, 0)))
                 {
                     ImGui.CloseCurrentPopup();
                 }
@@ -3358,7 +3358,7 @@ namespace BPSR_ZDPS.Windows
 
                 ImGui.NewLine();
 
-                if (ImGui.Button("Close", new Vector2(-1, 0)))
+                if (ImGui.Button(AppStrings.GetLocalized("EventTracker_Close"), new Vector2(-1, 0)))
                 {
                     IsPresetManagerOpened = false;
                 }
@@ -3370,7 +3370,7 @@ namespace BPSR_ZDPS.Windows
 
         private static void DrawContainerPresetManager()
         {
-            ImGui.TextUnformatted("Container Presets:");
+            ImGui.TextUnformatted(AppStrings.GetLocalized("EventTracker_ContainerPresets"));
             if (ImGui.BeginListBox("##ContainerPresetsList", new Vector2(ImGui.GetContentRegionAvail().X, -(ImGui.GetItemRectSize().Y * 12))))
             {
                 int idx = 0;
@@ -3393,7 +3393,7 @@ namespace BPSR_ZDPS.Windows
                             bool ctrlHeld = ImGui.IsKeyDown(ImGuiKey.ModCtrl);
                             if (!ctrlHeld)
                             {
-                                ImGui.TextUnformatted("Hold CTRL to see list of all Trackers.");
+                                ImGui.TextUnformatted(AppStrings.GetLocalized("EventTracker_HoldCtrlForTrackers"));
                             }
                             else
                             {
@@ -3417,7 +3417,7 @@ namespace BPSR_ZDPS.Windows
 
             ImGui.BeginDisabled(SelectedPresetManagerContainerIdx == -1);
             ImGui.PushStyleColor(ImGuiCol.Button, Colors.DarkGreen_Transparent);
-            if (ImGui.Button("Create Container From Preset", new Vector2(-1, 0)))
+            if (ImGui.Button(AppStrings.GetLocalized("EventTracker_CreateContainerFromPreset"), new Vector2(-1, 0)))
             {
                 ActiveTrackerContainer = (TrackerContainer)PresetContainersList.ElementAt(SelectedPresetManagerContainerIdx).Clone(++PersistentContainerCount, ref PersistentTrackerCount);
                 ActiveTrackerContainer.SourceLocationType = ESourceLocationType.Manual;
@@ -3435,26 +3435,26 @@ namespace BPSR_ZDPS.Windows
             }
             ImGui.PopStyleColor();
             ImGui.EndDisabled();
-            ImGui.SetItemTooltip("Creates a new Container based on the selected Preset.");
+            ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_CreateContainerFromPreset_Tooltip"));
 
             ImGui.BeginDisabled(ActiveTrackerContainer == null);
-            if (ImGui.Button("Create Preset From Selected Container", new Vector2(-1, 0)))
+            if (ImGui.Button(AppStrings.GetLocalized("EventTracker_CreatePresetFromContainer"), new Vector2(-1, 0)))
             {
                 uint tempTrackerId = 0;
                 PresetContainersList.Add((TrackerContainer)ActiveTrackerContainer.Clone(0, ref tempTrackerId));
             }
             ImGui.EndDisabled();
-            ImGui.SetItemTooltip("Creates a new Preset from the currently selected Container in the Event Tracker window.");
+            ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_CreatePresetFromContainer_Tooltip"));
 
             ImGui.BeginDisabled(SelectedPresetManagerContainerIdx == -1);
-            if (ImGui.Button("Copy Preset To Clipboard", new Vector2(-1, 0)))
+            if (ImGui.Button(AppStrings.GetLocalized("EventTracker_CopyPresetToClipboard"), new Vector2(-1, 0)))
             {
                 ImGui.SetClipboardText(JsonConvert.SerializeObject(PresetContainersList.ElementAt(SelectedPresetManagerContainerIdx)));
             }
             ImGui.EndDisabled();
-            ImGui.SetItemTooltip("Copies the selected Preset data to your clipboard.");
+            ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_CopyPresetToClipboard_Tooltip"));
 
-            if (ImGui.Button("Import Preset From Clipboard", new Vector2(-1, 0)))
+            if (ImGui.Button(AppStrings.GetLocalized("EventTracker_ImportPresetFromClipboard"), new Vector2(-1, 0)))
             {
                 try
                 {
@@ -3499,28 +3499,28 @@ namespace BPSR_ZDPS.Windows
                     }
                 }
             }
-            ImGui.SetItemTooltip("Imports a Preset from data on your clipboard.");
+            ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_ImportPresetFromClipboard_Tooltip"));
 
             ImGui.NewLine();
 
             ImGui.BeginDisabled(SelectedPresetManagerContainerIdx == -1);
             ImGui.PushStyleColor(ImGuiCol.Button, Colors.DarkRed_Transparent);
-            if (ImGui.Button("Delete Selected Preset", new Vector2(-1, 0)))
+            if (ImGui.Button(AppStrings.GetLocalized("EventTracker_DeleteSelectedPreset"), new Vector2(-1, 0)))
             {
                 PresetContainersList.RemoveAt(SelectedPresetManagerContainerIdx);
                 SelectedPresetManagerContainerIdx = -1;
             }
             ImGui.PopStyleColor();
             ImGui.EndDisabled();
-            ImGui.SetItemTooltip("Deletes the currently selected Preset.");
+            ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_DeleteSelectedPreset_Tooltip"));
         }
 
         private static void DrawTrackerPresetManager()
         {
-            ImGui.TextUnformatted("Tracker Presets:");
+            ImGui.TextUnformatted(AppStrings.GetLocalized("EventTracker_TrackerPresets"));
             ImGui.SetNextItemWidth(-1);
             ImGui.InputTextWithHint("##PresetManagerTrackersFilterText", "Filter Text", ref PresetManagerTrackersFilterText, 128);
-            ImGui.SetItemTooltip("Filter the Preset List by Tracker Name.");
+            ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_FilterPresetList_Tooltip"));
             var y = ImGui.GetContentRegionAvail().Y;
             var z = ImGui.GetItemRectSize().Y;
             if (ImGui.BeginListBox("##TrackerPresetsList", new Vector2(ImGui.GetContentRegionAvail().X, ImGui.GetContentRegionAvail().Y - (ImGui.GetItemRectSize().Y * 8.5f))))//-(ImGui.GetItemRectSize().Y * 12))))
@@ -3566,7 +3566,7 @@ namespace BPSR_ZDPS.Windows
             bool hasSingleItem = ActiveTrackerContainer.ContainerLayoutStyle == EContainerLayoutStyle.SingleItem && ActiveTrackerContainer.EventTrackers.Count > 0;
             ImGui.BeginDisabled(hasSingleItem || ActiveTrackerContainer == null || SelectedPresetManagerTracker == null);
             ImGui.PushStyleColor(ImGuiCol.Button, Colors.DarkGreen_Transparent);
-            if (ImGui.Button("Create Tracker From Preset", new Vector2(-1, 0)))
+            if (ImGui.Button(AppStrings.GetLocalized("EventTracker_CreateTrackerFromPreset"), new Vector2(-1, 0)))
             {
                 var newTracker = (TrackedEventEntry)SelectedPresetManagerTracker.Clone(++PersistentTrackerCount);
                 newTracker.SourceLocationType = ESourceLocationType.Manual;
@@ -3579,29 +3579,29 @@ namespace BPSR_ZDPS.Windows
             }
             ImGui.PopStyleColor();
             ImGui.EndDisabled();
-            ImGui.SetItemTooltip("Creates a new Tracker for the currently selected Container, based on the selected Preset.");
+            ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_CreateTrackerFromPreset_Tooltip"));
 
             ImGui.BeginDisabled(ActiveTrackedEventEntry == null);
-            if (ImGui.Button("Create Preset From Selected Tracker", new Vector2(-1, 0)))
+            if (ImGui.Button(AppStrings.GetLocalized("EventTracker_CreatePresetFromTracker"), new Vector2(-1, 0)))
             {
                 var newTracker = (TrackedEventEntry)ActiveTrackedEventEntry.Clone(0);
                 newTracker.SourceLocationType = ESourceLocationType.Manual;
                 PresetTrackersList.Add(newTracker);
             }
             ImGui.EndDisabled();
-            ImGui.SetItemTooltip("Creates a new Preset from the currently selected Tracker in the Event Tracker window.");
+            ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_CreatePresetFromTracker_Tooltip"));
 
             ImGui.BeginDisabled(SelectedPresetManagerTracker == null);
-            if (ImGui.Button("Copy Preset To Clipboard", new Vector2(-1, 0)))
+            if (ImGui.Button(AppStrings.GetLocalized("EventTracker_CopyPresetToClipboard"), new Vector2(-1, 0)))
             {
                 var newTracker = (TrackedEventEntry)SelectedPresetManagerTracker.Clone(0);
                 newTracker.SourceLocationType = ESourceLocationType.Manual;
                 ImGui.SetClipboardText(JsonConvert.SerializeObject(newTracker));
             }
             ImGui.EndDisabled();
-            ImGui.SetItemTooltip("Copies the selected Preset data to your clipboard.");
+            ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_CopyPresetToClipboard_Tooltip"));
 
-            if (ImGui.Button("Import Preset From Clipboard", new Vector2(-1, 0)))
+            if (ImGui.Button(AppStrings.GetLocalized("EventTracker_ImportPresetFromClipboard"), new Vector2(-1, 0)))
             {
                 try
                 {
@@ -3621,13 +3621,13 @@ namespace BPSR_ZDPS.Windows
                     Serilog.Log.Error(ex, "Error attempting to import an Event Tracker Preset from clipboard.");
                 }
             }
-            ImGui.SetItemTooltip("Imports a Preset from data on your clipboard.");
+            ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_ImportPresetFromClipboard_Tooltip"));
 
             ImGui.NewLine();
 
             ImGui.BeginDisabled(SelectedPresetManagerTracker == null);
             ImGui.PushStyleColor(ImGuiCol.Button, Colors.DarkRed_Transparent);
-            if (ImGui.Button("Delete Selected Preset", new Vector2(-1, 0)))
+            if (ImGui.Button(AppStrings.GetLocalized("EventTracker_DeleteSelectedPreset"), new Vector2(-1, 0)))
             {
                 if (ImGui.IsKeyDown(ImGuiKey.ModCtrl))
                 {
@@ -3644,13 +3644,13 @@ namespace BPSR_ZDPS.Windows
             ImGui.EndDisabled();
             if (ImGui.BeginItemTooltip())
             {
-                ImGui.TextUnformatted("Deletes the currently selected Preset.");
+                ImGui.TextUnformatted(AppStrings.GetLocalized("EventTracker_DeleteSelectedPreset_Confirm"));
                 bool ctrlHeld = ImGui.IsKeyDown(ImGuiKey.ModCtrl);
                 if (ctrlHeld)
                 {
                     ImGui.PushStyleColor(ImGuiCol.Text, Colors.Green_Transparent);
                 }
-                ImGui.TextUnformatted("Hold CTRL to delete ALL Presets.");
+                ImGui.TextUnformatted(AppStrings.GetLocalized("EventTracker_HoldCtrlDeleteAllPresets"));
                 if (ctrlHeld)
                 {
                     ImGui.PopStyleColor();
@@ -3679,7 +3679,7 @@ namespace BPSR_ZDPS.Windows
                 ImGui.SetNextWindowSize(new Vector2(450, 300), ImGuiCond.FirstUseEver);
                 if (ImGui.Begin("Event Tracker Debug Log", ref ShowDebugLogWindow, ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoDocking))
                 {
-                    ImGui.Checkbox("Debug Log Scene Events", ref DebugAllSceneEvents);
+                    ImGui.Checkbox(AppStrings.GetLocalized("EventTracker_DebugLogSceneEvents"), ref DebugAllSceneEvents);
                     ImGui.Separator();
                     ImGui.BeginChild("##DebugLogList", ImGui.GetContentRegionAvail(), ImGuiWindowFlags.HorizontalScrollbar);
                     foreach (var logItem in DebugEventTrackerLog)
@@ -3694,21 +3694,21 @@ namespace BPSR_ZDPS.Windows
                     ImGui.EndChild();
                     if (ImGui.BeginPopupContextItem())
                     {
-                        if (ImGui.MenuItem("Auto Scroll", DebugLogAutoScroll))
+                        if (ImGui.MenuItem(AppStrings.GetLocalized("EventTracker_DebugAutoScroll"), DebugLogAutoScroll))
                         {
                             DebugLogAutoScroll = !DebugLogAutoScroll;
                         }
 
                         ImGui.Separator();
 
-                        if (ImGui.MenuItem("Copy Log To Clipboard"))
+                        if (ImGui.MenuItem(AppStrings.GetLocalized("EventTracker_DebugCopyLog")))
                         {
                             ImGui.SetClipboardText(string.Join("\n", DebugEventTrackerLog));
                         }
 
                         ImGui.Separator();
 
-                        if (ImGui.MenuItem("Clear Log"))
+                        if (ImGui.MenuItem(AppStrings.GetLocalized("EventTracker_DebugClearLog")))
                         {
                             DebugEventTrackerLog.Clear();
                         }
@@ -3801,7 +3801,7 @@ namespace BPSR_ZDPS.Windows
 
                     TrackerContainer? duplicateContainer = null;
 
-                    ImGui.SeparatorText("Tracker Containers");
+                    ImGui.SeparatorText(AppStrings.GetLocalized("EventTracker_Section_TrackerContainers"));
 
                     if (IsPresetManagerInContainerMode)
                     {
@@ -3824,7 +3824,7 @@ namespace BPSR_ZDPS.Windows
                                 container.Value.HadTransparentBackground = false;
                                 container.Value.LastSetOpacity = 100;
                             }
-                            ImGui.SetItemTooltip("Is Container Enabled");
+                            ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_IsContainerEnabled_Tooltip"));
                             ImGui.PopStyleVar();
                             ImGui.SameLine();
                             if (ImGui.Selectable($"{container.Value.ContainerName}##container_{container.Value.IdTracker}", isSelected, ImGuiSelectableFlags.None | highlight))
@@ -3964,7 +3964,7 @@ namespace BPSR_ZDPS.Windows
                             ImGui.SetItemTooltip($"Trackers: {container.Value.EventTrackers.Count}");
                             if (ImGui.BeginPopupContextItem())
                             {
-                                if (ImGui.MenuItem("Copy Container To Clipboard"))
+                                if (ImGui.MenuItem(AppStrings.GetLocalized("EventTracker_CopyContainerToClipboard")))
                                 {
                                     uint tempTrackerId = 0;
                                     var newContainer = ((TrackerContainer)container.Value.Clone(0, ref tempTrackerId));
@@ -3974,7 +3974,7 @@ namespace BPSR_ZDPS.Windows
 
                                 ImGui.Separator();
 
-                                if (ImGui.MenuItem("Duplicate Container"))
+                                if (ImGui.MenuItem(AppStrings.GetLocalized("EventTracker_DuplicateContainer")))
                                 {
                                     duplicateContainer = container.Value;
                                 }
@@ -4053,7 +4053,7 @@ namespace BPSR_ZDPS.Windows
                         IsPresetManagerInContainerMode = true;
                         OpenPresetManagerWindow();
                     }
-                    ImGui.SetItemTooltip("Allows you to add new Trackers from Presets or save existing Trackers as new Presets.");
+                    ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_ContainerPresetManager_Tooltip"));
 
                     ImGui.TableNextColumn();
 
@@ -4066,7 +4066,7 @@ namespace BPSR_ZDPS.Windows
                             if (ActiveTrackedEventEntry != null)
                             {
                                 //ImGui.SeparatorText("Tracker Settings");
-                                if (ImGui.CollapsingHeader("Tracker Settings", ImGuiTreeNodeFlags.DefaultOpen))
+                                if (ImGui.CollapsingHeader(AppStrings.GetLocalized("EventTracker_Section_TrackerSettings"), ImGuiTreeNodeFlags.DefaultOpen))
                                 {
                                     ImGui.Indent();
                                     DrawTrackerOptions();
@@ -4076,7 +4076,7 @@ namespace BPSR_ZDPS.Windows
                         }
                         else
                         {
-                            ImGui.TextUnformatted("No Container Selected");
+                            ImGui.TextUnformatted(AppStrings.GetLocalized("EventTracker_NoContainerSelected"));
                         }
 
                         ImGui.NewLine();
@@ -4130,7 +4130,7 @@ namespace BPSR_ZDPS.Windows
                             if (attrCombatState != null && attrCombatState > 0)
                             {
                                 ImGui.PushStyleColor(ImGuiCol.Text, Colors.Red);
-                                ImGui.TextUnformatted("[WARNING: Edit Mode Is Enabled. Trackers May Not Behave Correctly!]");
+                                ImGui.TextUnformatted(AppStrings.GetLocalized("EventTracker_MenuBar_EditModeWarning"));
                                 ImGui.PopStyleColor();
                             }
                         }
@@ -4146,7 +4146,7 @@ namespace BPSR_ZDPS.Windows
                 }
                 ImGui.PopStyleColor();
                 ImGui.PopFont();
-                ImGui.SetItemTooltip("Toggles Container Editing Mode.");
+                ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_MenuBar_EditModeToggle_Tooltip"));
 
                 ImGui.SetCursorPosX(MenuBarSize.X - (MenuBarButtonWidth * 3) - (ImGui.GetStyle().ItemSpacing.X * 2));
                 ImGui.PushFont(HelperMethods.Fonts["FASIcons"], ImGui.GetFontSize());
@@ -4159,11 +4159,11 @@ namespace BPSR_ZDPS.Windows
                 ImGui.PopFont();
                 if (ForceHideAllContainers)
                 {
-                    ImGui.SetItemTooltip("Disables forcefully hiding Containers.");
+                    ImGui.SetItemTooltip(AppStrings.GetLocalized("MainWindow_EventTracker_ForceToggle_Show_Tooltip"));
                 }
                 else
                 {
-                    ImGui.SetItemTooltip("Forcefully hide all Containers.");
+                    ImGui.SetItemTooltip(AppStrings.GetLocalized("MainWindow_EventTracker_ForceToggle_Hide_Tooltip"));
                 }
 
                 ImGui.SetCursorPosX(MenuBarSize.X - (MenuBarButtonWidth * 2) - ImGui.GetStyle().ItemSpacing.X);
@@ -4176,43 +4176,43 @@ namespace BPSR_ZDPS.Windows
                 ImGui.PopFont();
                 if (ImGui.BeginPopup("##EventTrackerSettingsMenu"))
                 {
-                    ImGui.Checkbox("Container Edit Mode (Allows Movement)", ref windowSettings.IsContainerEditMode);
+                    ImGui.Checkbox(AppStrings.GetLocalized("EventTracker_Settings_ContainerEditMode"), ref windowSettings.IsContainerEditMode);
 
-                    ImGui.Checkbox("Show Edit Mode Placeholders", ref windowSettings.EditModeShowPlaceholders);
-                    ImGui.SetItemTooltip("Attempts to add Placeholder entries for Trackers while in Edit Mode to help with visualizing them.");
+                    ImGui.Checkbox(AppStrings.GetLocalized("EventTracker_Settings_ShowEditModePlaceholders"), ref windowSettings.EditModeShowPlaceholders);
+                    ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_Settings_ShowEditModePlaceholders_Tooltip"));
 
                     ImGui.BeginDisabled(windowSettings.OnlyShowContainersWhenZDPSMeterPinned);
-                    ImGui.Checkbox("Hide Containers When Game Not Focused", ref windowSettings.HideContainersWhenGameNotFocused);
-                    ImGui.SetItemTooltip("Automatically hides all Containers when the game isn't in focus regardless of Container and Tracker settings.");
+                    ImGui.Checkbox(AppStrings.GetLocalized("EventTracker_Settings_HideContainersWhenGameNotFocused"), ref windowSettings.HideContainersWhenGameNotFocused);
+                    ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_Settings_HideContainersWhenGameNotFocused_Tooltip"));
                     ImGui.Indent();
                     ImGui.BeginDisabled(!windowSettings.HideContainersWhenGameNotFocused);
-                    ImGui.Checkbox("Keep Containers When ZDPS Focused", ref windowSettings.KeepContainersWhenZDPSFocused);
-                    ImGui.SetItemTooltip("Having a ZDPS window in focus will prevent the Containers from being automatically hidden due to the game no longer being in focus.");
+                    ImGui.Checkbox(AppStrings.GetLocalized("EventTracker_Settings_KeepContainersWhenZDPSFocused"), ref windowSettings.KeepContainersWhenZDPSFocused);
+                    ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_Settings_KeepContainersWhenZDPSFocused_Tooltip"));
                     ImGui.EndDisabled();
                     ImGui.Unindent();
                     ImGui.EndDisabled();
                     ImGui.BeginDisabled(windowSettings.HideContainersWhenGameNotFocused);
-                    ImGui.Checkbox("Only Show Containers When ZDPS Meter Pinned", ref windowSettings.OnlyShowContainersWhenZDPSMeterPinned);
-                    ImGui.SetItemTooltip("Containers will only be visible when the ZDPS Meter window is actively pinned as top most.\nThis is not compatible with the other Container Hiding settings.\nDoes not apply while in Edit Mode.");
+                    ImGui.Checkbox(AppStrings.GetLocalized("EventTracker_Settings_OnlyShowContainersWhenMeterPinned"), ref windowSettings.OnlyShowContainersWhenZDPSMeterPinned);
+                    ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_Settings_OnlyShowContainersWhenMeterPinned_Tooltip"));
                     ImGui.EndDisabled();
 
-                    ImGui.Checkbox("Containers Always Ignore Input (Excluding Edit Mode)", ref windowSettings.AlwaysIgnoreInputs);
-                    ImGui.SetItemTooltip("All input/mouse events will be ignored for Containers unless in Edit Mode.\nOtherwise, 'Pinned Window Clickthrough' (Mouse Passthrough) must be toggled on via Hotkey Keybind in Settings.");
+                    ImGui.Checkbox(AppStrings.GetLocalized("EventTracker_Settings_ContainersAlwaysIgnoreInput"), ref windowSettings.AlwaysIgnoreInputs);
+                    ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_Settings_ContainersAlwaysIgnoreInput_Tooltip"));
 
-                    ImGui.Checkbox("Show 'Force Hide Containers' Button On Main Window", ref windowSettings.ShowForceHideContainersBtnOnMainWindow);
+                    ImGui.Checkbox(AppStrings.GetLocalized("EventTracker_Settings_ShowForceHideContainersBtn"), ref windowSettings.ShowForceHideContainersBtnOnMainWindow);
 
                     ImGui.Separator();
 
-                    if (ImGui.MenuItem("Reload Internal Presets"))
+                    if (ImGui.MenuItem(AppStrings.GetLocalized("EventTracker_Settings_ReloadInternalPresets")))
                     {
                         LoadDefaultPresets(true);
                     }
-                    ImGui.SetItemTooltip("Adds the Internal Preset Trackers and Containers back to the Preset Lists\nNote: This may cause duplicate entries. Internal Presets will be put at the top of the list.");
+                    ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_Settings_ReloadInternalPresets_Tooltip"));
 
                     ImGui.Separator();
 
-                    ImGui.Checkbox("Show Debug Log", ref ShowDebugLogWindow);
-                    ImGui.SetItemTooltip("Log Window for Scene Events and when a Tracker has 'Debug Tracker' Enabled.");
+                    ImGui.Checkbox(AppStrings.GetLocalized("EventTracker_Settings_ShowDebugLog"), ref ShowDebugLogWindow);
+                    ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_Settings_ShowDebugLog_Tooltip"));
 
                     ImGui.EndPopup();
                 }
@@ -4235,7 +4235,7 @@ namespace BPSR_ZDPS.Windows
 
         private static void DrawContainerOptions()
         {
-            ImGui.SeparatorText("Container Settings");
+            ImGui.SeparatorText(AppStrings.GetLocalized("EventTracker_Section_ContainerSettings"));
             ImGui.AlignTextToFramePadding();
             ImGui.TextUnformatted(AppStrings.GetLocalized("EventTracker_ContainerName"));
             ImGui.SameLine();
@@ -4246,7 +4246,7 @@ namespace BPSR_ZDPS.Windows
             }
 
             ImGui.Checkbox(AppStrings.GetLocalized("EventTracker_ShowContainerName"), ref ActiveTrackerContainer.ShowContainerName);
-            ImGui.SetItemTooltip("Controls if the Container Name should be displayed at the top of the Tracker Container window.");
+            ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_ShowContainerName_Tooltip"));
 
             ImGui.SameLine();
 
@@ -4256,7 +4256,7 @@ namespace BPSR_ZDPS.Windows
                 ActiveTrackerContainer.LastSetOpacity = 100;
                 ActiveTrackerContainer.IsWindowTitleDirty = true;
             }
-            ImGui.SetItemTooltip("Controls if the entire Container is Enabled and should be shown.");
+            ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_IsContainerEnable_Tooltip"));
 
             ImGui.SameLine();
 
@@ -4264,11 +4264,11 @@ namespace BPSR_ZDPS.Windows
             {
                 ActiveTrackerContainer.IsWindowTitleDirty = true;
             }
-            ImGui.SetItemTooltip("Hiding from the Task Bar may prevent screen recording software like OBS from seeing the Container window to capture.\nNote: You may need to toggle the Enabled state of this Container after changing this setting for it to take effect.");
+            ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_ShowInTaskBar_Tooltip"));
 
             ImGui.Dummy(new Vector2(0, 0));
 
-            if (ImGui.CollapsingHeader("Container Settings", ImGuiTreeNodeFlags.DefaultOpen))
+            if (ImGui.CollapsingHeader(AppStrings.GetLocalized("EventTracker_Section_ContainerSettings"), ImGuiTreeNodeFlags.DefaultOpen))
             {
                 ImGui.Indent();
 
@@ -4360,7 +4360,7 @@ namespace BPSR_ZDPS.Windows
                     ImGui.EndCombo();
                 }
 
-                ImGui.SeparatorText("Layout Visuals");
+                ImGui.SeparatorText(AppStrings.GetLocalized("EventTracker_Section_LayoutVisuals"));
 
                 if (ImGui.BeginTable("##LayoutVisualsTable", 2, ImGuiTableFlags.None))
                 {
@@ -4393,7 +4393,7 @@ namespace BPSR_ZDPS.Windows
                     ImGui.TableNextColumn();
 
                     ImGui.Checkbox(AppStrings.GetLocalized("EventTracker_HideTrackerBackground"), ref ActiveTrackerContainer.HideTrackerBackground);
-                    ImGui.SetItemTooltip("Removes the background coloring for Trackers.\nWorks well when combined with Transparent Background.");
+                    ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_HideTrackerBackground_Tooltip"));
                     if (ActiveTrackerContainer.HideTrackerBackground)
                     {
                         ImGui.Indent();
@@ -4409,12 +4409,12 @@ namespace BPSR_ZDPS.Windows
                     ImGui.TableNextColumn();
 
                     ImGui.Checkbox(AppStrings.GetLocalized("EventTracker_HideTrackerBorders"), ref ActiveTrackerContainer.HideTrackerBorders);
-                    ImGui.SetItemTooltip("Removes the borders around Trackers.\nWorks well when combined with Transparent Background.");
+                    ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_HideTrackerBorders_Tooltip"));
 
                     ImGui.EndTable();
                 }
 
-                ImGui.SeparatorText("Tooltips");
+                ImGui.SeparatorText(AppStrings.GetLocalized("EventTracker_Section_Tooltips"));
 
                 if (ImGui.BeginTable("##TooltipsTable", 3, ImGuiTableFlags.SizingFixedFit))
                 {
@@ -4437,7 +4437,7 @@ namespace BPSR_ZDPS.Windows
                     ImGui.TableNextColumn();
 
                     ImGui.Checkbox(AppStrings.GetLocalized("EventTracker_Tooltips_TrimLongDescriptions"), ref ActiveTrackerContainer.TrimLongDescriptionTooltips);
-                    ImGui.SetItemTooltip("Descriptions are limited to 120 characters with this is Enabled.");
+                    ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_Tooltips_TrimLongDescriptions_Tooltip"));
                     ImGui.TableNextColumn();
 
                     ImGui.TableNextRow();
@@ -4445,7 +4445,7 @@ namespace BPSR_ZDPS.Windows
                     ImGui.EndTable();
                 }
 
-                if (ImGui.CollapsingHeader("Special", ImGuiTreeNodeFlags.DefaultOpen))
+                if (ImGui.CollapsingHeader(AppStrings.GetLocalized("EventTracker_Section_Special"), ImGuiTreeNodeFlags.DefaultOpen))
                 {
                     ImGui.Indent();
 
@@ -4466,7 +4466,7 @@ namespace BPSR_ZDPS.Windows
                     {
                         ImGui.SameLine();
                         ImGui.PushStyleColor(ImGuiCol.Text, Colors.Red);
-                        ImGui.TextWrapped("[Track All Skills] is Enabled");
+                        ImGui.TextWrapped(AppStrings.GetLocalized("EventTracker_Special_TrackAllSkills_Enabled"));
                         ImGui.PopStyleColor();
                     }
                     ImGui.EndDisabled();
@@ -4495,7 +4495,7 @@ namespace BPSR_ZDPS.Windows
                     {
                         ImGui.SameLine();
                         ImGui.PushStyleColor(ImGuiCol.Text, Colors.Red);
-                        ImGui.TextWrapped("[Track All Buffs] is Enabled");
+                        ImGui.TextWrapped(AppStrings.GetLocalized("EventTracker_Special_TrackAllBuffs_Enabled"));
                         ImGui.PopStyleColor();
                     }
                     ImGui.EndDisabled();
@@ -4509,7 +4509,7 @@ namespace BPSR_ZDPS.Windows
                     ImGui.Unindent();
                 }
 
-                if (ImGui.CollapsingHeader("Extra Container Settings"))
+                if (ImGui.CollapsingHeader(AppStrings.GetLocalized("EventTracker_Section_ExtraContainerSettings")))
                 {
                     ImGui.Indent();
                     var windowSettings = Settings.Instance.WindowSettings.EventTracker;
@@ -4518,7 +4518,7 @@ namespace BPSR_ZDPS.Windows
                     {
                         int[] posArray = { (int)pos.X, (int)pos.Y };
                         ImGui.AlignTextToFramePadding();
-                        ImGui.TextUnformatted("Container Position:");
+                        ImGui.TextUnformatted(AppStrings.GetLocalized("EventTracker_ContainerPosition"));
                         ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, ImGui.GetColorU32(ImGuiCol.FrameBgHovered, 0.55f));
                         ImGui.PushStyleColor(ImGuiCol.FrameBgActive, ImGui.GetColorU32(ImGuiCol.FrameBgActive, 0.55f));
 
@@ -4535,7 +4535,7 @@ namespace BPSR_ZDPS.Windows
                         ImGui.PopStyleColor(2);
 
                         ImGui.SameLine();
-                        if (ImGui.Button("Reset"))
+                        if (ImGui.Button(AppStrings.GetLocalized("EventTracker_ContainerPosition_Reset")))
                         {
                             var glfwMonitor = Hexa.NET.GLFW.GLFW.GetPrimaryMonitor();
                             var glfwVidMode = Hexa.NET.GLFW.GLFW.GetVideoMode(glfwMonitor);
@@ -4550,7 +4550,7 @@ namespace BPSR_ZDPS.Windows
                     }
                     else
                     {
-                        ImGui.TextUnformatted("Container has not been shown yet.");
+                        ImGui.TextUnformatted(AppStrings.GetLocalized("EventTracker_ContainerNotShownYet"));
                     }
 
                     ImGui.Unindent();
@@ -4560,7 +4560,7 @@ namespace BPSR_ZDPS.Windows
             }
             
 
-            ImGui.SeparatorText("Event Trackers"u8);
+            ImGui.SeparatorText(AppStrings.GetLocalized("EventTracker_Section_EventTrackers"));
 
             if (ImGui.BeginListBox("##TrackersListbox", new Vector2(ImGui.GetContentRegionAvail().X, 140)))
             {
@@ -4620,7 +4620,7 @@ namespace BPSR_ZDPS.Windows
                         if (eventTracker.Value.DebugLogTracker)
                         {
                             ImGui.PushStyleColor(ImGuiCol.Text, Colors.Red);
-                            ImGui.TextUnformatted("Debug Tracker: Enabled");
+                            ImGui.TextUnformatted(AppStrings.GetLocalized("EventTracker_DebugTrackerEnabled"));
                             ImGui.PopStyleColor();
                         }
 
@@ -4628,7 +4628,7 @@ namespace BPSR_ZDPS.Windows
                     }
                     if (ImGui.BeginPopupContextItem())
                     {
-                        if (ImGui.MenuItem("Copy Tracker To Clipboard"))
+                        if (ImGui.MenuItem(AppStrings.GetLocalized("EventTracker_CopyTrackerToClipboard")))
                         {
                             // Create a cleaned version of the Tracker that is dependency-free before it is copied
                             var newTracker = (TrackedEventEntry)eventTracker.Value.Clone(0);
@@ -4685,7 +4685,7 @@ namespace BPSR_ZDPS.Windows
             ImGui.EndDisabled();
             if (hasSingleTracker)
             {
-                ImGui.SetItemTooltip("Container already has a Tracker in it.\nChange the Style to List to support more than one Tracker at a time or make a new Container.");
+                ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_SingleTrackerAlreadyExists_Tooltip"));
             }
             ImGui.SameLine();
             ImGui.BeginDisabled(ActiveTrackedEventEntry == null || ActiveTrackedEventEntryIdx == -1);
@@ -4727,7 +4727,7 @@ namespace BPSR_ZDPS.Windows
                 IsPresetManagerInContainerMode = false;
                 OpenPresetManagerWindow();
             }
-            ImGui.SetItemTooltip("Allows you to add new Trackers from Presets or save existing Trackers as new Presets.");
+            ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_TrackerPresetManager_Tooltip"));
 
             ImGui.SameLine();
             ImGui.BeginDisabled(ActiveTrackedEventEntryIdx < 1);
@@ -4743,7 +4743,7 @@ namespace BPSR_ZDPS.Windows
             }
             ImGui.PopFont();
             ImGui.EndDisabled();
-            ImGui.SetItemTooltip("Move Selected Tracker Up.");
+            ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_MoveTrackerUp_Tooltip"));
             ImGui.SameLine();
             ImGui.BeginDisabled(ActiveTrackedEventEntryIdx == -1 || ActiveTrackedEventEntryIdx == ActiveTrackerContainer.EventTrackers.Count - 1);
             ImGui.PushFont(HelperMethods.Fonts["FASIcons"], ImGui.GetFontSize());
@@ -4758,7 +4758,7 @@ namespace BPSR_ZDPS.Windows
             }
             ImGui.PopFont();
             ImGui.EndDisabled();
-            ImGui.SetItemTooltip("Move Selected Tracker Down.");
+            ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_MoveTrackerDown_Tooltip"));
 
             ImGui.NewLine();
         }
@@ -4766,13 +4766,13 @@ namespace BPSR_ZDPS.Windows
         private static void DrawTrackerOptions()
         {
             ImGui.AlignTextToFramePadding();
-            ImGui.TextUnformatted("Tracker Name:");
+            ImGui.TextUnformatted(AppStrings.GetLocalized("EventTracker_TrackerName"));
             ImGui.SameLine();
             ImGui.SetNextItemWidth(-1);
             ImGui.InputText("##TrackerNameInputText", ref ActiveTrackedEventEntry.TrackerName, 256);
 
             ImGui.AlignTextToFramePadding();
-            ImGui.TextUnformatted("Tracker Type:");
+            ImGui.TextUnformatted(AppStrings.GetLocalized("EventTracker_TrackerType"));
             ImGui.SameLine();
             ImGui.SetNextItemWidth(-1);
             if (ImGui.BeginCombo("##TrackerType", ActiveTrackedEventEntry.TrackerType.ToString(), ImGuiComboFlags.None))
@@ -4798,7 +4798,7 @@ namespace BPSR_ZDPS.Windows
 
             if (ImGui.BeginTabBar("##TrackerOptionsTabs", ImGuiTabBarFlags.NoCloseWithMiddleMouseButton))
             {
-                if (ImGui.BeginTabItem("Tracker##TrackerTypeOptionsTab"))
+                if (ImGui.BeginTabItem($"{AppStrings.GetLocalized("EventTracker_Tab_Tracker")}##TrackerTypeOptionsTab"))
                 {
                     if (ActiveTrackedEventEntry.TrackerType == ETrackerType.Buffs)
                     {
@@ -4815,25 +4815,25 @@ namespace BPSR_ZDPS.Windows
                     ImGui.EndTabItem();
                 }
 
-                if (ImGui.BeginTabItem("Display Format##DisplayFormatTab"))
+                if (ImGui.BeginTabItem($"{AppStrings.GetLocalized("EventTracker_Tab_DisplayFormat")}##DisplayFormatTab"))
                 {
                     DrawDisplayFormatOptions();
                     ImGui.EndTabItem();
                 }
 
-                if (ImGui.BeginTabItem("Load Events##LoadEventsTab"))
+                if (ImGui.BeginTabItem($"{AppStrings.GetLocalized("EventTracker_Tab_LoadEvents")}##LoadEventsTab"))
                 {
-                    if (ImGui.Checkbox("Is Tracker Enabled", ref ActiveTrackedEventEntry.IsEnabled))
+                    if (ImGui.Checkbox(AppStrings.GetLocalized("EventTracker_IsTrackerEnabled"), ref ActiveTrackedEventEntry.IsEnabled))
                     {
                         ActiveTrackerContainer.RecheckTrackerStates();
                     }
 
                     ImGui.Separator();
 
-                    ImGui.Checkbox("Debug Tracker", ref ActiveTrackedEventEntry.DebugLogTracker);
+                    ImGui.Checkbox(AppStrings.GetLocalized("EventTracker_DebugTracker"), ref ActiveTrackedEventEntry.DebugLogTracker);
                     if (ImGui.BeginPopupContextItem(ImGuiPopupFlags.MouseButtonRight))
                     {
-                        if (ImGui.MenuItem("Apply To Other Trackers"))
+                        if (ImGui.MenuItem(AppStrings.GetLocalized("EventTracker_ApplyToOtherTrackers")))
                         {
                             foreach (var tracker in ActiveTrackerContainer.EventTrackers)
                             {
@@ -4861,15 +4861,15 @@ namespace BPSR_ZDPS.Windows
 
         private static void DrawBuffTrackerOptions()
         {
-            ImGui.TextUnformatted("Select Buff To Track:");
+            ImGui.TextUnformatted(AppStrings.GetLocalized("EventTracker_SelectBuffToTrack"));
             ImGui.AlignTextToFramePadding();
-            ImGui.TextUnformatted("Filter: ");
+            ImGui.TextUnformatted(AppStrings.GetLocalized("EventTracker_Filter"));
             ImGui.SameLine();
-            ImGui.Checkbox("(Search Descriptions)", ref BuffFilterIncludeDescriptions);
-            ImGui.SetItemTooltip("Search the Description text of Buffs instead of only their Names.");
+            ImGui.Checkbox(AppStrings.GetLocalized("EventTracker_SearchDescriptions_Buff"), ref BuffFilterIncludeDescriptions);
+            ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_SearchDescriptions_Buff_Tooltip"));
             ImGui.SameLine();
             ImGui.SetNextItemWidth(-1);
-            if (ImGui.InputTextWithHint("##BuffFilterText", "Name or ID", ref BuffFilterText, 128))
+            if (ImGui.InputTextWithHint("##BuffFilterText", AppStrings.GetLocalized("EventTracker_FilterHint_NameOrId"), ref BuffFilterText, 128))
             {
                 if (BuffFilterText.Length > 0)
                 {
@@ -4986,12 +4986,12 @@ namespace BPSR_ZDPS.Windows
             DrawWhoToTrack();
 
             ImGui.AlignTextToFramePadding();
-            ImGui.TextUnformatted("Buff Source Must Be 'Self':");
+            ImGui.TextUnformatted(AppStrings.GetLocalized("EventTracker_BuffSourceMustBeSelf"));
             ImGui.SameLine();
             ImGui.Checkbox("##BuffSourceMustBeSelf", ref ActiveTrackedEventEntry.EventSourceMustBeSelf);
 
             ImGui.AlignTextToFramePadding();
-            ImGui.TextUnformatted("Limit To One Tracker Instance:");
+            ImGui.TextUnformatted(AppStrings.GetLocalized("EventTracker_LimitToOneTrackerInstance"));
             ImGui.SameLine();
             if (ImGui.Checkbox("##LimitToOneTrackerInstance", ref ActiveTrackedEventEntry.LimitToOneTrackerInstance))
             {
@@ -5005,9 +5005,9 @@ namespace BPSR_ZDPS.Windows
             ImGui.NewLine();
 
             ImGui.AlignTextToFramePadding();
-            ImGui.TextUnformatted("What Events To Track:");
+            ImGui.TextUnformatted(AppStrings.GetLocalized("EventTracker_WhatEventsToTrack"));
             ImGui.SameLine();
-            ImGui.Checkbox("View All Events", ref ShowAllBuffEventsToTrack);
+            ImGui.Checkbox(AppStrings.GetLocalized("EventTracker_ViewAllEvents"), ref ShowAllBuffEventsToTrack);
             if (ImGui.BeginListBox("##TrackedBuffEventsListBox", new Vector2(ImGui.GetContentRegionAvail().X, 140)))
             {
                 Zproto.EBuffEventType[] eventsList = System.Enum.GetValues<Zproto.EBuffEventType>();
@@ -5042,20 +5042,20 @@ namespace BPSR_ZDPS.Windows
                     if (ImGui.BeginPopupContextItem())
                     {
                         ImGui.BeginDisabled(ActiveTrackedEventEntry.BuffEvents.Count > 1);
-                        if (ImGui.MenuItem("Select All Events"))
+                        if (ImGui.MenuItem(AppStrings.GetLocalized("EventTracker_SelectAllEvents")))
                         {
                             ActiveTrackedEventEntry.BuffEvents.Clear();
                             ActiveTrackedEventEntry.BuffEvents.AddRange(eventsList);
                         }
-                        ImGui.SetItemTooltip($"Selects all listed events.\nWill not select Advanced Mode events if not currently in Advanced ('View All Events') Mode.");
+                        ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_SelectAllEvents_Tooltip"));
                         ImGui.EndDisabled();
 
                         ImGui.BeginDisabled(ActiveTrackedEventEntry.BuffEvents.Count == 0);
-                        if (ImGui.MenuItem("Deselect All Events"))
+                        if (ImGui.MenuItem(AppStrings.GetLocalized("EventTracker_DeselectAllEvents")))
                         {
                             ActiveTrackedEventEntry.BuffEvents.Clear();
                         }
-                        ImGui.SetItemTooltip($"Deselects all events.\nIf events in Advanced Mode were selected they will be removed even if not in Advanced ('View All Events') Mode.");
+                        ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_DeselectAllEvents_Tooltip"));
                         ImGui.EndDisabled();
 
                         ImGui.EndPopup();
@@ -5066,34 +5066,34 @@ namespace BPSR_ZDPS.Windows
 
             ImGui.NewLine();
 
-            ImGui.Checkbox("Override Duration", ref ActiveTrackedEventEntry.OverrideDuration);
-            ImGui.SetItemTooltip("Force the Duration to be a specific value instead of a detected one.");
+            ImGui.Checkbox(AppStrings.GetLocalized("EventTracker_OverrideDuration"), ref ActiveTrackedEventEntry.OverrideDuration);
+            ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_OverrideDuration_Tooltip"));
             if (ActiveTrackedEventEntry.OverrideDuration)
             {
                 ImGui.Indent();
                 ImGui.AlignTextToFramePadding();
-                ImGui.TextUnformatted("Override Value:");
+                ImGui.TextUnformatted(AppStrings.GetLocalized("EventTracker_OverrideValue"));
                 ImGui.SameLine();
                 ImGui.InputInt("##OverrideValueInput", ref ActiveTrackedEventEntry.DurationOverrideValue, ImGuiInputTextFlags.CharsDecimal);
-                ImGui.SetItemTooltip("New Duration value to force. Value is in Seconds.");
+                ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_OverrideValue_Tooltip"));
                 ImGui.Unindent();
             }
 
-            ImGui.Checkbox("Ignore Duration", ref ActiveTrackedEventEntry.IgnoreCooldownDuration);
-            ImGui.SetItemTooltip("The duration of the Tracker will be ignored. This may prevent some Events from triggering.\nThis can be useful for Buffs that do not make use of a duration to end and instead rely on Layer Count or some other metric.");
+            ImGui.Checkbox(AppStrings.GetLocalized("EventTracker_IgnoreDuration"), ref ActiveTrackedEventEntry.IgnoreCooldownDuration);
+            ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_IgnoreDuration_Tooltip"));
 
             ImGui.BeginDisabled(!ActiveTrackedEventEntry.IgnoreCooldownDuration);
             ImGui.Indent();
-            ImGui.Checkbox("Use Layers For Duration", ref ActiveTrackedEventEntry.UseLayersForDuration);
-            ImGui.SetItemTooltip("The Buff's Layers count will be used to indicate progress via the Duration Progress Bar.");
+            ImGui.Checkbox(AppStrings.GetLocalized("EventTracker_UseLayersForDuration"), ref ActiveTrackedEventEntry.UseLayersForDuration);
+            ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_UseLayersForDuration_Tooltip"));
             if (ActiveTrackedEventEntry.UseLayersForDuration)
             {
                 ImGui.Indent();
                 ImGui.AlignTextToFramePadding();
-                ImGui.TextUnformatted("Layers Duration Max Value:");
+                ImGui.TextUnformatted(AppStrings.GetLocalized("EventTracker_LayersDurationMaxValue"));
                 ImGui.SameLine();
                 ImGui.InputInt("##LayersForDurationMaxValue", ref ActiveTrackedEventEntry.LayersForDurationMaxValue, ImGuiInputTextFlags.CharsDecimal);
-                ImGui.SetItemTooltip("This value will be used as the max target for the Buff's Layer count to reach.");
+                ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_LayersDurationMaxValue_Tooltip"));
                 ImGui.Unindent();
             }
             ImGui.Unindent();
@@ -5102,15 +5102,15 @@ namespace BPSR_ZDPS.Windows
 
         private static void DrawSkillTrackerOptions()
         {
-            ImGui.TextUnformatted("Select Skill To Track:");
+            ImGui.TextUnformatted(AppStrings.GetLocalized("EventTracker_SelectSkillToTrack"));
             ImGui.AlignTextToFramePadding();
-            ImGui.TextUnformatted("Filter: ");
+            ImGui.TextUnformatted(AppStrings.GetLocalized("EventTracker_Filter"));
             ImGui.SameLine();
-            ImGui.Checkbox("(Search Descriptions)", ref SkillFilterIncludeDescriptions);
-            ImGui.SetItemTooltip("Search the Description text of Skills instead of only their Names.");
+            ImGui.Checkbox(AppStrings.GetLocalized("EventTracker_SearchDescriptions_Skill"), ref SkillFilterIncludeDescriptions);
+            ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_SearchDescriptions_Skill_Tooltip"));
             ImGui.SameLine();
             ImGui.SetNextItemWidth(-1);
-            if (ImGui.InputTextWithHint("##SkillFilterText", "Name or ID", ref SkillFilterText, 128))
+            if (ImGui.InputTextWithHint("##SkillFilterText", AppStrings.GetLocalized("EventTracker_FilterHint_NameOrId"), ref SkillFilterText, 128))
             {
                 if (SkillFilterText.Length > 0)
                 {
@@ -5207,7 +5207,7 @@ namespace BPSR_ZDPS.Windows
             ImGui.NewLine();
 
             ImGui.AlignTextToFramePadding();
-            ImGui.TextUnformatted("What Events To Track:");
+            ImGui.TextUnformatted(AppStrings.GetLocalized("EventTracker_WhatEventsToTrack"));
             if (ImGui.BeginListBox("##TrackedSkillEventsListBox", new Vector2(ImGui.GetContentRegionAvail().X, 140)))
             {
                 foreach (var skillEventType in System.Enum.GetValues<ESkillEventTrackingType>())
@@ -5228,13 +5228,13 @@ namespace BPSR_ZDPS.Windows
                     switch (skillEventType)
                     {
                         case ESkillEventTrackingType.SkillCast:
-                            ImGui.SetItemTooltip("This occurs whenever a skill is cast.");
+                            ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_SkillEvent_SkillCast_Tooltip"));
                             break;
                         case ESkillEventTrackingType.BossWarning:
-                            ImGui.SetItemTooltip("This occurs when a Boss warns of a special attack coming soon (a cast bar appears to the left of their health bar).");
+                            ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_SkillEvent_BossWarning_Tooltip"));
                             break;
                         case ESkillEventTrackingType.NoticeTip:
-                            ImGui.SetItemTooltip("This occurs when a message appears on your screen informing about how to perform a fight mechanic.");
+                            ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_SkillEvent_NoticeTip_Tooltip"));
                             break;
                         default:
                             break;
@@ -5246,10 +5246,10 @@ namespace BPSR_ZDPS.Windows
 
             ImGui.NewLine();
 
-            ImGui.TextUnformatted("Charge Behavior:");
-            ImGui.TextDisabled("Applies to skills with multiple Charges.");
+            ImGui.TextUnformatted(AppStrings.GetLocalized("EventTracker_ChargeBehavior"));
+            ImGui.TextDisabled(AppStrings.GetLocalized("EventTracker_ChargeBehavior_Desc"));
             ImGui.AlignTextToFramePadding();
-            ImGui.TextUnformatted("Charge Cooldown Type:");
+            ImGui.TextUnformatted(AppStrings.GetLocalized("EventTracker_ChargeCooldownType"));
             ImGui.SameLine();
             ImGui.SetNextItemWidth(-1);
             if (ImGui.BeginCombo("##ChargeCooldownType", ActiveTrackedEventEntry.ChargeCooldownType.ToString()))
@@ -5272,7 +5272,7 @@ namespace BPSR_ZDPS.Windows
             }
 
             ImGui.AlignTextToFramePadding();
-            ImGui.TextUnformatted("Charge Duration Display Type:");
+            ImGui.TextUnformatted(AppStrings.GetLocalized("EventTracker_ChargeDurationDisplayType"));
             ImGui.SameLine();
             ImGui.SetNextItemWidth(-1);
             if (ImGui.BeginCombo("##ChargeDurationDisplayType", ActiveTrackedEventEntry.ChargeDurationDisplayType.ToString()))
@@ -5296,23 +5296,23 @@ namespace BPSR_ZDPS.Windows
 
             ImGui.NewLine();
 
-            ImGui.Checkbox("Override Duration", ref ActiveTrackedEventEntry.OverrideDuration);
-            ImGui.SetItemTooltip("Force the Duration to be a specific value instead of a detected one.");
+            ImGui.Checkbox(AppStrings.GetLocalized("EventTracker_OverrideDuration"), ref ActiveTrackedEventEntry.OverrideDuration);
+            ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_OverrideDuration_Tooltip"));
             if (ActiveTrackedEventEntry.OverrideDuration)
             {
                 ImGui.Indent();
                 ImGui.AlignTextToFramePadding();
-                ImGui.TextUnformatted("Override Value:");
+                ImGui.TextUnformatted(AppStrings.GetLocalized("EventTracker_OverrideValue"));
                 ImGui.SameLine();
                 ImGui.InputInt("##OverrideValueInput", ref ActiveTrackedEventEntry.DurationOverrideValue, ImGuiInputTextFlags.CharsDecimal);
-                ImGui.SetItemTooltip("New Duration value to force. Value is in Seconds.");
+                ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_OverrideValue_Tooltip"));
                 ImGui.Unindent();
             }
-            ImGui.Checkbox("Use Boss Warning Cooldown Duration", ref ActiveTrackedEventEntry.UseBossDbmCdDuration);
-            ImGui.SetItemTooltip("Uses the Cooldown Duration reported in the Boss Skill Warning table.");
+            ImGui.Checkbox(AppStrings.GetLocalized("EventTracker_UseBossWarningCooldownDuration"), ref ActiveTrackedEventEntry.UseBossDbmCdDuration);
+            ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_UseBossWarningCooldownDuration_Tooltip"));
 
-            ImGui.Checkbox("Override Tracked Id", ref ActiveTrackedEventEntry.OverrideTrackedId);
-            ImGui.SetItemTooltip("This is primarily useful for changing the ID used with Notice Tip Events.");
+            ImGui.Checkbox(AppStrings.GetLocalized("EventTracker_OverrideTrackedId"), ref ActiveTrackedEventEntry.OverrideTrackedId);
+            ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_OverrideTrackedId_Tooltip"));
             if (ActiveTrackedEventEntry.OverrideTrackedId)
             {
                 ImGui.Indent();
@@ -5323,12 +5323,12 @@ namespace BPSR_ZDPS.Windows
 
         private static void DrawAttributeTrackerOptions()
         {
-            ImGui.TextUnformatted("Select Attribute To Track:");
+            ImGui.TextUnformatted(AppStrings.GetLocalized("EventTracker_SelectAttributeToTrack"));
             ImGui.AlignTextToFramePadding();
-            ImGui.TextUnformatted("Filter: ");
+            ImGui.TextUnformatted(AppStrings.GetLocalized("EventTracker_Filter"));
             ImGui.SameLine();
             ImGui.SetNextItemWidth(-1);
-            if (ImGui.InputTextWithHint("##AttributeFilterText", "Name", ref AttributeFilterText, 128))
+            if (ImGui.InputTextWithHint("##AttributeFilterText", AppStrings.GetLocalized("EventTracker_FilterHint_Name"), ref AttributeFilterText, 128))
             {
                 if (AttributeFilterText.Length > 0)
                 {
@@ -5375,9 +5375,9 @@ namespace BPSR_ZDPS.Windows
         private static void DrawDisplayFormatOptions()
         {
             ImGui.AlignTextToFramePadding();
-            ImGui.TextUnformatted("Display Format:");
+            ImGui.TextUnformatted(AppStrings.GetLocalized("EventTracker_DisplayFormat"));
             ImGui.SameLine();
-            if (ImGui.Button("Apply Settings To All Trackers In Container"))
+            if (ImGui.Button(AppStrings.GetLocalized("EventTracker_ApplySettingsToAllTrackers")))
             {
                 foreach (var tracker in ActiveTrackerContainer.EventTrackers)
                 {
@@ -5429,23 +5429,23 @@ namespace BPSR_ZDPS.Windows
                     }
                 }
             }
-            ImGui.SetItemTooltip("This will apply all current 'Display Format' settings to all other Trackers in this Container.\nNote: Does NOT include Custom Name, Custom Icon, or Raid Warning values.");
+            ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_ApplySettingsToAllTrackers_Tooltip"));
 
-            ImGui.Checkbox("Show Entity Name", ref ActiveTrackedEventEntry.ShowEntityName);
+            ImGui.Checkbox(AppStrings.GetLocalized("EventTracker_ShowEntityName"), ref ActiveTrackedEventEntry.ShowEntityName);
 
             if (ActiveTrackedEventEntry.TrackerType == ETrackerType.Buffs)
             {
-                ImGui.Checkbox("Show Caster Name", ref ActiveTrackedEventEntry.ShowCasterName);
+                ImGui.Checkbox(AppStrings.GetLocalized("EventTracker_ShowCasterName"), ref ActiveTrackedEventEntry.ShowCasterName);
             }
 
-            ImGui.SeparatorText("Icon");
+            ImGui.SeparatorText(AppStrings.GetLocalized("EventTracker_Section_Icon"));
 
-            ImGui.Checkbox("Show Icon", ref ActiveTrackedEventEntry.ShowIcon);
+            ImGui.Checkbox(AppStrings.GetLocalized("EventTracker_ShowIcon"), ref ActiveTrackedEventEntry.ShowIcon);
             if (ActiveTrackedEventEntry.ShowIcon)
             {
                 ImGui.Indent();
                 ImGui.AlignTextToFramePadding();
-                ImGui.TextUnformatted("Icon Size:");
+                ImGui.TextUnformatted(AppStrings.GetLocalized("EventTracker_IconSize"));
                 ImGui.SameLine();
                 ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, ImGui.GetColorU32(ImGuiCol.FrameBgHovered, 0.55f));
                 ImGui.PushStyleColor(ImGuiCol.FrameBgActive, ImGui.GetColorU32(ImGuiCol.FrameBgActive, 0.55f));
@@ -5455,7 +5455,7 @@ namespace BPSR_ZDPS.Windows
                 ImGui.Unindent();
 
                 ImGui.Indent();
-                if (ImGui.Checkbox("Use Custom Icon", ref ActiveTrackedEventEntry.UseCustomIcon))
+                if (ImGui.Checkbox(AppStrings.GetLocalized("EventTracker_UseCustomIcon"), ref ActiveTrackedEventEntry.UseCustomIcon))
                 {
                     ActiveTrackedEventEntry.UpdateIconData("", false);
                 }
@@ -5466,24 +5466,21 @@ namespace BPSR_ZDPS.Windows
                     {
                         ActiveTrackedEventEntry.UpdateIconData("", false);
                     }
-                    ImGui.SetItemTooltip("The file path starts in the ZDPS 'Data\\Images\\Buffs or Skills' directory.\n" +
-                        "It is suggested to put new icons in a new custom sub-folder such as 'Data\\Images\\Custom'\n" +
-                        "Files must be in the PNG format. Values entered here MUST NOT include their file extension.\n" +
-                        "Example paths may look like: 'skill_fz_01' or '..\\Custom\\NewIcon'");
+                    ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_UseCustomIcon_Tooltip"));
                     ImGui.Unindent();
                 }
                 ImGui.Unindent();
             }
 
-            ImGui.SeparatorText("Name");
+            ImGui.SeparatorText(AppStrings.GetLocalized("EventTracker_Section_Name"));
 
-            ImGui.Checkbox("Show Name", ref ActiveTrackedEventEntry.ShowName);
+            ImGui.Checkbox(AppStrings.GetLocalized("EventTracker_ShowName"), ref ActiveTrackedEventEntry.ShowName);
             if (ActiveTrackedEventEntry.ShowName)
             {
                 ImGui.Indent();
 
                 ImGui.AlignTextToFramePadding();
-                ImGui.TextUnformatted("Name Size:");
+                ImGui.TextUnformatted(AppStrings.GetLocalized("EventTracker_NameSize"));
                 ImGui.SameLine();
                 ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, ImGui.GetColorU32(ImGuiCol.FrameBgHovered, 0.55f));
                 ImGui.PushStyleColor(ImGuiCol.FrameBgActive, ImGui.GetColorU32(ImGuiCol.FrameBgActive, 0.55f));
@@ -5491,7 +5488,7 @@ namespace BPSR_ZDPS.Windows
                 ImGui.SliderInt("##NameSize", ref ActiveTrackedEventEntry.NameSize, 16, 96);
                 ImGui.PopStyleColor(2);
 
-                ImGui.Checkbox("Use Custom Name", ref ActiveTrackedEventEntry.UseCustomName);
+                ImGui.Checkbox(AppStrings.GetLocalized("EventTracker_UseCustomName"), ref ActiveTrackedEventEntry.UseCustomName);
                 if (ActiveTrackedEventEntry.UseCustomName)
                 {
                     ImGui.Indent();
@@ -5499,16 +5496,16 @@ namespace BPSR_ZDPS.Windows
                     ImGui.Unindent();
                 }
 
-                ImGui.Checkbox("Show Name Before Icon##ShowNameBeforeIcon", ref ActiveTrackedEventEntry.ShowNameBeforeIcon);
+                ImGui.Checkbox($"{AppStrings.GetLocalized("EventTracker_ShowNameBeforeIcon")}##ShowNameBeforeIcon", ref ActiveTrackedEventEntry.ShowNameBeforeIcon);
                 if (ActiveTrackedEventEntry.ShowNameBeforeIcon)
                 {
                     ImGui.Indent();
-                    ImGui.Checkbox("New Line Before Icon##NameNewLineBeforeIcon", ref ActiveTrackedEventEntry.NameNewLineBeforeIcon);
+                    ImGui.Checkbox($"{AppStrings.GetLocalized("EventTracker_NameNewLineBeforeIcon")}##NameNewLineBeforeIcon", ref ActiveTrackedEventEntry.NameNewLineBeforeIcon);
                     ImGui.Unindent();
                 }
 
-                ImGui.Checkbox("Use Custom Name Text Color##UseCustomNameTextColor", ref ActiveTrackedEventEntry.UseCustomNameTextColor);
-                ImGui.SetItemTooltip("Changes the color of Name Text.");
+                ImGui.Checkbox($"{AppStrings.GetLocalized("EventTracker_UseCustomNameTextColor")}##UseCustomNameTextColor", ref ActiveTrackedEventEntry.UseCustomNameTextColor);
+                ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_UseCustomNameTextColor_Tooltip"));
                 ImGui.SameLine();
                 ImGui.PushFont(HelperMethods.Fonts["FASIcons"], ImGui.GetFontSize());
                 if (ImGui.Button($"{FASIcons.CheckDouble}##ApplyAllCustomNameTextColorBtn"))
@@ -5523,7 +5520,7 @@ namespace BPSR_ZDPS.Windows
                     }
                 }
                 ImGui.PopFont();
-                ImGui.SetItemTooltip("Apply To All Other Trackers In Container.");
+                ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_ApplyToAllTrackers_Tooltip"));
 
                 if (ActiveTrackedEventEntry.UseCustomNameTextColor)
                 {
@@ -5539,15 +5536,15 @@ namespace BPSR_ZDPS.Windows
 
             if (ActiveTrackedEventEntry.TrackerType != ETrackerType.Attributes)
             {
-                ImGui.SeparatorText("Layers");
+                ImGui.SeparatorText(AppStrings.GetLocalized("EventTracker_Section_Layers"));
 
-                ImGui.Checkbox("Show Layers", ref ActiveTrackedEventEntry.ShowLayers);
+                ImGui.Checkbox(AppStrings.GetLocalized("EventTracker_ShowLayers"), ref ActiveTrackedEventEntry.ShowLayers);
                 if (ActiveTrackedEventEntry.ShowLayers)
                 {
                     ImGui.Indent();
 
                     ImGui.AlignTextToFramePadding();
-                    ImGui.TextUnformatted("Layers Size:");
+                    ImGui.TextUnformatted(AppStrings.GetLocalized("EventTracker_LayersSize"));
                     ImGui.SameLine();
                     ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, ImGui.GetColorU32(ImGuiCol.FrameBgHovered, 0.55f));
                     ImGui.PushStyleColor(ImGuiCol.FrameBgActive, ImGui.GetColorU32(ImGuiCol.FrameBgActive, 0.55f));
@@ -5555,16 +5552,16 @@ namespace BPSR_ZDPS.Windows
                     ImGui.SliderInt("##LayersSize", ref ActiveTrackedEventEntry.LayerSize, 16, 96);
                     ImGui.PopStyleColor(2);
 
-                    ImGui.Checkbox("Show Layers Before Icon##ShowLayersBeforeIcon", ref ActiveTrackedEventEntry.ShowLayersBeforeIcon);
+                    ImGui.Checkbox($"{AppStrings.GetLocalized("EventTracker_ShowLayersBeforeIcon")}##ShowLayersBeforeIcon", ref ActiveTrackedEventEntry.ShowLayersBeforeIcon);
                     if (ActiveTrackedEventEntry.ShowLayersBeforeIcon)
                     {
                         ImGui.Indent();
-                        ImGui.Checkbox("New Line Before Icon##LayersNewLineBeforeIcon", ref ActiveTrackedEventEntry.LayersNewLineBeforeIcon);
+                        ImGui.Checkbox($"{AppStrings.GetLocalized("EventTracker_LayersNewLineBeforeIcon")}##LayersNewLineBeforeIcon", ref ActiveTrackedEventEntry.LayersNewLineBeforeIcon);
                         ImGui.Unindent();
                     }
 
-                    ImGui.Checkbox("Use Custom Layers Text Color##UseCustomLayersTextColor", ref ActiveTrackedEventEntry.UseCustomLayersTextColor);
-                    ImGui.SetItemTooltip("Changes the color of Layers Text.");
+                    ImGui.Checkbox($"{AppStrings.GetLocalized("EventTracker_UseCustomLayersTextColor")}##UseCustomLayersTextColor", ref ActiveTrackedEventEntry.UseCustomLayersTextColor);
+                    ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_UseCustomLayersTextColor_Tooltip"));
                     ImGui.SameLine();
                     ImGui.PushFont(HelperMethods.Fonts["FASIcons"], ImGui.GetFontSize());
                     if (ImGui.Button($"{FASIcons.CheckDouble}##ApplyAllCustomLayersTextColorBtn"))
@@ -5579,7 +5576,7 @@ namespace BPSR_ZDPS.Windows
                         }
                     }
                     ImGui.PopFont();
-                    ImGui.SetItemTooltip("Apply To All Other Trackers In Container.");
+                    ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_ApplyToAllTrackers_Tooltip"));
 
                     if (ActiveTrackedEventEntry.UseCustomLayersTextColor)
                     {
@@ -5593,15 +5590,15 @@ namespace BPSR_ZDPS.Windows
                     ImGui.Unindent();
                 }
 
-                ImGui.SeparatorText("Duration Text");
+                ImGui.SeparatorText(AppStrings.GetLocalized("EventTracker_Section_DurationText"));
 
-                ImGui.Checkbox("Show Duration Text", ref ActiveTrackedEventEntry.ShowDurationText);
+                ImGui.Checkbox(AppStrings.GetLocalized("EventTracker_ShowDurationText"), ref ActiveTrackedEventEntry.ShowDurationText);
                 if (ActiveTrackedEventEntry.ShowDurationText)
                 {
                     ImGui.Indent();
 
                     ImGui.AlignTextToFramePadding();
-                    ImGui.TextUnformatted("Duration Text Size:");
+                    ImGui.TextUnformatted(AppStrings.GetLocalized("EventTracker_DurationTextSize"));
                     ImGui.SameLine();
                     ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, ImGui.GetColorU32(ImGuiCol.FrameBgHovered, 0.55f));
                     ImGui.PushStyleColor(ImGuiCol.FrameBgActive, ImGui.GetColorU32(ImGuiCol.FrameBgActive, 0.55f));
@@ -5609,14 +5606,14 @@ namespace BPSR_ZDPS.Windows
                     ImGui.SliderInt("##DurationTextSize", ref ActiveTrackedEventEntry.DurationTextSize, 16, 96);
                     ImGui.PopStyleColor(2);
 
-                    ImGui.Checkbox("Same Line##DurationTextSameLine", ref ActiveTrackedEventEntry.DurationTextSameLine);
-                    ImGui.SetItemTooltip("Displays Duration Text on the same line as the previous displayed option for this Tracker.");
+                    ImGui.Checkbox($"{AppStrings.GetLocalized("EventTracker_DurationTextSameLine")}##DurationTextSameLine", ref ActiveTrackedEventEntry.DurationTextSameLine);
+                    ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_DurationTextSameLine_Tooltip"));
 
-                    ImGui.Checkbox("Use Minutes Format For Long Durations##UseMinutesForLongDuration", ref ActiveTrackedEventEntry.UseMinutesForLongDuration);
-                    ImGui.SetItemTooltip("Displays the Duration as minutes instead of seconds when more than 60 seconds remain.");
+                    ImGui.Checkbox($"{AppStrings.GetLocalized("EventTracker_UseMinutesForLongDuration")}##UseMinutesForLongDuration", ref ActiveTrackedEventEntry.UseMinutesForLongDuration);
+                    ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_UseMinutesForLongDuration_Tooltip"));
 
-                    ImGui.Checkbox("Use Custom Duration Text Color##UseCustomDurationTextColor", ref ActiveTrackedEventEntry.UseCustomDurationTextColor);
-                    ImGui.SetItemTooltip("Changes the color of Duration Text when NOT combined with other elements.");
+                    ImGui.Checkbox($"{AppStrings.GetLocalized("EventTracker_UseCustomDurationTextColor")}##UseCustomDurationTextColor", ref ActiveTrackedEventEntry.UseCustomDurationTextColor);
+                    ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_UseCustomDurationTextColor_Tooltip"));
                     ImGui.SameLine();
                     ImGui.PushFont(HelperMethods.Fonts["FASIcons"], ImGui.GetFontSize());
                     if (ImGui.Button($"{FASIcons.CheckDouble}##ApplyAllCustomDurationTextColorBtn"))
@@ -5631,7 +5628,7 @@ namespace BPSR_ZDPS.Windows
                         }
                     }
                     ImGui.PopFont();
-                    ImGui.SetItemTooltip("Apply To All Other Trackers In Container.");
+                    ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_ApplyToAllTrackers_Tooltip"));
 
                     if (ActiveTrackedEventEntry.UseCustomDurationTextColor)
                     {
@@ -5645,15 +5642,15 @@ namespace BPSR_ZDPS.Windows
                     ImGui.Unindent();
                 }
 
-                ImGui.SeparatorText("Duration Progress Bar");
+                ImGui.SeparatorText(AppStrings.GetLocalized("EventTracker_Section_DurationProgressBar"));
 
-                ImGui.Checkbox("Show Duration Progress Bar", ref ActiveTrackedEventEntry.ShowDurationProgessBar);
+                ImGui.Checkbox(AppStrings.GetLocalized("EventTracker_ShowDurationProgressBar"), ref ActiveTrackedEventEntry.ShowDurationProgessBar);
                 if (ActiveTrackedEventEntry.ShowDurationProgessBar)
                 {
                     ImGui.Indent();
 
                     ImGui.AlignTextToFramePadding();
-                    ImGui.TextUnformatted("Duration Progress Bar Style:");
+                    ImGui.TextUnformatted(AppStrings.GetLocalized("EventTracker_DurationProgressBarStyle"));
                     ImGui.SameLine();
                     ImGui.SetNextItemWidth(-1);
                     if (ImGui.BeginCombo("##DurationProgressBarStyle", ActiveTrackedEventEntry.DurationProgressBarStyle.ToString(), ImGuiComboFlags.None))
@@ -5677,14 +5674,14 @@ namespace BPSR_ZDPS.Windows
                         }
                         ImGui.EndCombo();
                     }
-                    ImGui.SetItemTooltip("Note: Circle Style does not support placing anything Inside it other than the Icon.");
+                    ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_DurationProgressBarStyle_Note"));
 
                     if (ActiveTrackedEventEntry.DurationProgressBarStyle == EDurationProgressBarStyle.Circle)
                     {
                         ImGui.Indent();
 
                         ImGui.AlignTextToFramePadding();
-                        ImGui.TextUnformatted("Circle Progress Bar Thickness:");
+                        ImGui.TextUnformatted(AppStrings.GetLocalized("EventTracker_CircleProgressBarThickness"));
                         ImGui.SameLine();
                         ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, ImGui.GetColorU32(ImGuiCol.FrameBgHovered, 0.55f));
                         ImGui.PushStyleColor(ImGuiCol.FrameBgActive, ImGui.GetColorU32(ImGuiCol.FrameBgActive, 0.55f));
@@ -5692,8 +5689,8 @@ namespace BPSR_ZDPS.Windows
                         ImGui.SliderInt("##DurationProgressBarCircleThickness", ref ActiveTrackedEventEntry.DurationProgressBarCircleThickness, 1, 24);
                         ImGui.PopStyleColor(2);
 
-                        ImGui.Checkbox("Apply Overlay To Circle Fill##UseDurationProgressBarCircleBackgroundFill", ref ActiveTrackedEventEntry.UseDurationProgressBarCircleBackgroundFill);
-                        ImGui.SetItemTooltip("Adds a dimmed overlay to the center of the circle, potentially making it easier to read text in it.");
+                        ImGui.Checkbox($"{AppStrings.GetLocalized("EventTracker_ApplyOverlayToCircleFill")}##UseDurationProgressBarCircleBackgroundFill", ref ActiveTrackedEventEntry.UseDurationProgressBarCircleBackgroundFill);
+                        ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_ApplyOverlayToCircleFill_Tooltip"));
 
                         if (ActiveTrackedEventEntry.UseDurationProgressBarCircleBackgroundFill)
                         {
@@ -5707,7 +5704,7 @@ namespace BPSR_ZDPS.Windows
                         ImGui.Unindent();
                     }
 
-                    ImGui.Checkbox("Use Custom Color Duration Progress Bar##UseCustomColorDurationProgressBar", ref ActiveTrackedEventEntry.UseCustomColorDurationProgressBar);
+                    ImGui.Checkbox($"{AppStrings.GetLocalized("EventTracker_UseCustomColorDurationProgressBar")}##UseCustomColorDurationProgressBar", ref ActiveTrackedEventEntry.UseCustomColorDurationProgressBar);
 
                     ImGui.SameLine();
                     ImGui.PushFont(HelperMethods.Fonts["FASIcons"], ImGui.GetFontSize());
@@ -5723,7 +5720,7 @@ namespace BPSR_ZDPS.Windows
                         }
                     }
                     ImGui.PopFont();
-                    ImGui.SetItemTooltip("Apply To All Other Trackers In Container.");
+                    ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_ApplyToAllTrackers_Tooltip"));
 
                     if (ActiveTrackedEventEntry.UseCustomColorDurationProgressBar)
                     {
@@ -5733,7 +5730,7 @@ namespace BPSR_ZDPS.Windows
                     }
 
                     ImGui.AlignTextToFramePadding();
-                    ImGui.TextUnformatted("Duration Progress Bar Size:");
+                    ImGui.TextUnformatted(AppStrings.GetLocalized("EventTracker_DurationProgressBarSize"));
                     ImGui.SameLine();
                     ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, ImGui.GetColorU32(ImGuiCol.FrameBgHovered, 0.55f));
                     ImGui.PushStyleColor(ImGuiCol.FrameBgActive, ImGui.GetColorU32(ImGuiCol.FrameBgActive, 0.55f));
@@ -5742,7 +5739,7 @@ namespace BPSR_ZDPS.Windows
                     ImGui.PopStyleColor(2);
 
                     ImGui.AlignTextToFramePadding();
-                    ImGui.TextUnformatted("Duration Progress Bar Text Size:");
+                    ImGui.TextUnformatted(AppStrings.GetLocalized("EventTracker_DurationProgressBarTextSize"));
                     ImGui.SameLine();
                     ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, ImGui.GetColorU32(ImGuiCol.FrameBgHovered, 0.55f));
                     ImGui.PushStyleColor(ImGuiCol.FrameBgActive, ImGui.GetColorU32(ImGuiCol.FrameBgActive, 0.55f));
@@ -5750,14 +5747,14 @@ namespace BPSR_ZDPS.Windows
                     ImGui.SliderInt("##DurationProgressBarTextSize", ref ActiveTrackedEventEntry.DurationProgressBarTextSize, 16, 96);
                     ImGui.PopStyleColor(2);
 
-                    ImGui.Checkbox("Same Line##DurationProgressBarSameLine", ref ActiveTrackedEventEntry.DurationProgressBarSameLine);
-                    ImGui.SetItemTooltip("Note: Requires [Layout Size Constraint = 'FixedSize'] to work correctly.\nDisplays Duration Progress Bar on the same line as the previous displayed option for this Tracker.");
+                    ImGui.Checkbox($"{AppStrings.GetLocalized("EventTracker_DurationProgressBarSameLine")}##DurationProgressBarSameLine", ref ActiveTrackedEventEntry.DurationProgressBarSameLine);
+                    ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_DurationProgressBarSameLine_Tooltip"));
 
                     if (ActiveTrackedEventEntry.DurationProgressBarSameLine)
                     {
                         ImGui.Indent();
                         ImGui.AlignTextToFramePadding();
-                        ImGui.TextUnformatted("Duration Progress Bar Vertical Offset:");
+                        ImGui.TextUnformatted(AppStrings.GetLocalized("EventTracker_DurationProgressBarVerticalOffset"));
                         ImGui.SameLine();
                         ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, ImGui.GetColorU32(ImGuiCol.FrameBgHovered, 0.55f));
                         ImGui.PushStyleColor(ImGuiCol.FrameBgActive, ImGui.GetColorU32(ImGuiCol.FrameBgActive, 0.55f));
@@ -5767,7 +5764,7 @@ namespace BPSR_ZDPS.Windows
                         ImGui.Unindent();
                     }
 
-                    ImGui.Checkbox("Icon Inside Progress Bar##ShowIconInsideProgressBar", ref ActiveTrackedEventEntry.ShowIconInsideProgressBar);
+                    ImGui.Checkbox($"{AppStrings.GetLocalized("EventTracker_IconInsideProgressBar")}##ShowIconInsideProgressBar", ref ActiveTrackedEventEntry.ShowIconInsideProgressBar);
 
                     if (ActiveTrackedEventEntry.ShowIconInsideProgressBar && ActiveTrackedEventEntry.DurationProgressBarStyle == EDurationProgressBarStyle.Circle)
                     {
@@ -5785,55 +5782,55 @@ namespace BPSR_ZDPS.Windows
                             }
                         }
                         ImGui.PopFont();
-                        ImGui.SetItemTooltip("Apply Both Stretch Left and Right Values To All Other Trackers In Container.");
+                        ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_ApplyBothStretchValues_Tooltip"));
 
                         ImGui.Indent();
                         ImGui.AlignTextToFramePadding();
-                        ImGui.TextUnformatted("Icon Stretch Left:");
+                        ImGui.TextUnformatted(AppStrings.GetLocalized("EventTracker_IconStretchLeft"));
                         ImGui.SameLine();
                         ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, ImGui.GetColorU32(ImGuiCol.FrameBgHovered, 0.55f));
                         ImGui.PushStyleColor(ImGuiCol.FrameBgActive, ImGui.GetColorU32(ImGuiCol.FrameBgActive, 0.55f));
                         ImGui.SetNextItemWidth(-1);
                         ImGui.SliderInt("##IconStretchLeftValue", ref ActiveTrackedEventEntry.IconStretchLeftValue, -10, 20);
                         ImGui.PopStyleColor(2);
-                        ImGui.SetItemTooltip("Recommended Value 0 when using a Circular Icon. 8 when a Default Game Rectangle Icon.");
+                        ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_IconStretchLeft_Tooltip"));
 
                         ImGui.AlignTextToFramePadding();
-                        ImGui.TextUnformatted("Icon Stretch Right:");
+                        ImGui.TextUnformatted(AppStrings.GetLocalized("EventTracker_IconStretchRight"));
                         ImGui.SameLine();
                         ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, ImGui.GetColorU32(ImGuiCol.FrameBgHovered, 0.55f));
                         ImGui.PushStyleColor(ImGuiCol.FrameBgActive, ImGui.GetColorU32(ImGuiCol.FrameBgActive, 0.55f));
                         ImGui.SetNextItemWidth(-1);
                         ImGui.SliderInt("##IconStretchRightValue", ref ActiveTrackedEventEntry.IconStretchRightValue, -10, 20);
                         ImGui.PopStyleColor(2);
-                        ImGui.SetItemTooltip("Recommended Value 0 when using a Circular Icon. -6 when a Default Game Rectangle Icon.");
+                        ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_IconStretchRight_Tooltip"));
 
                         ImGui.Unindent();
                     }
 
-                    ImGui.Checkbox("Entity Name Inside Progress Bar##ShowEntityNameInsideProgressBar", ref ActiveTrackedEventEntry.ShowEntityNameInsideProgressBar);
-                    ImGui.SetItemTooltip("Note: Only applies if 'Show Entity Name' is also Enabled.");
+                    ImGui.Checkbox($"{AppStrings.GetLocalized("EventTracker_EntityNameInsideProgressBar")}##ShowEntityNameInsideProgressBar", ref ActiveTrackedEventEntry.ShowEntityNameInsideProgressBar);
+                    ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_EntityNameInsideProgressBar_Tooltip"));
 
-                    ImGui.Checkbox("Name Inside Progress Bar##ShowNameInsideProgressBar", ref ActiveTrackedEventEntry.ShowNameInsideProgressBar);
-                    ImGui.SetItemTooltip("Note: Only applies if 'Show Name' is also Enabled.");
+                    ImGui.Checkbox($"{AppStrings.GetLocalized("EventTracker_NameInsideProgressBar")}##ShowNameInsideProgressBar", ref ActiveTrackedEventEntry.ShowNameInsideProgressBar);
+                    ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_NameInsideProgressBar_Tooltip"));
 
-                    ImGui.Checkbox("Layers Inside Progress Bar##ShowLayersInsideProgressBar", ref ActiveTrackedEventEntry.ShowLayersInsideProgressBar);
-                    ImGui.SetItemTooltip("Note: Only applies if 'Show Layers' is also Enabled. Will be automatically attached to end of Name.");
+                    ImGui.Checkbox($"{AppStrings.GetLocalized("EventTracker_LayersInsideProgressBar")}##ShowLayersInsideProgressBar", ref ActiveTrackedEventEntry.ShowLayersInsideProgressBar);
+                    ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_LayersInsideProgressBar_Tooltip"));
 
-                    ImGui.Checkbox("Duration Text Inside Progress Bar##ShowDurationTextInProgressBar", ref ActiveTrackedEventEntry.ShowDurationTextInProgressBar);
+                    ImGui.Checkbox($"{AppStrings.GetLocalized("EventTracker_DurationTextInsideProgressBar")}##ShowDurationTextInProgressBar", ref ActiveTrackedEventEntry.ShowDurationTextInProgressBar);
 
                     ImGui.AlignTextToFramePadding();
-                    ImGui.TextUnformatted("Inside Text Offset:");
+                    ImGui.TextUnformatted(AppStrings.GetLocalized("EventTracker_InsideTextOffset"));
                     ImGui.SameLine();
                     ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, ImGui.GetColorU32(ImGuiCol.FrameBgHovered, 0.55f));
                     ImGui.PushStyleColor(ImGuiCol.FrameBgActive, ImGui.GetColorU32(ImGuiCol.FrameBgActive, 0.55f));
                     ImGui.SetNextItemWidth(-1);
                     ImGui.SliderInt("##TextInsideProgressBarOffset", ref ActiveTrackedEventEntry.TextInsideProgressBarOffset, 0, 100, ImGuiSliderFlags.AlwaysClamp);
                     ImGui.PopStyleColor(2);
-                    ImGui.SetItemTooltip("0 = Left, 50 = Center, 100 = Right");
+                    ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_InsideTextOffset_Tooltip"));
 
-                    ImGui.Checkbox("Color Bar By Type", ref ActiveTrackedEventEntry.ColorDurationProgressBarByType);
-                    ImGui.SetItemTooltip("Changes the Duration Progress Bar color to be based on the entry type (Ex: Positive Buffs are Green, Debuffs are Red).");
+                    ImGui.Checkbox(AppStrings.GetLocalized("EventTracker_ColorBarByType"), ref ActiveTrackedEventEntry.ColorDurationProgressBarByType);
+                    ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_ColorBarByType_Tooltip"));
 
                     ImGui.Unindent();
 
@@ -5841,13 +5838,13 @@ namespace BPSR_ZDPS.Windows
             }
             else
             {
-                ImGui.SeparatorText("Attribute Value");
+                ImGui.SeparatorText(AppStrings.GetLocalized("EventTracker_Section_AttributeValue"));
 
-                ImGui.Checkbox("Format As Percent", ref ActiveTrackedEventEntry.FormatAttributeAsPercent);
-                ImGui.SetItemTooltip("Changes the value displayed to be a Percent if supported.");
+                ImGui.Checkbox(AppStrings.GetLocalized("EventTracker_FormatAsPercent"), ref ActiveTrackedEventEntry.FormatAttributeAsPercent);
+                ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_FormatAsPercent_Tooltip"));
 
                 ImGui.AlignTextToFramePadding();
-                ImGui.TextUnformatted("Value Size:");
+                ImGui.TextUnformatted(AppStrings.GetLocalized("EventTracker_AttributeValueSize"));
                 ImGui.SameLine();
                 ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, ImGui.GetColorU32(ImGuiCol.FrameBgHovered, 0.55f));
                 ImGui.PushStyleColor(ImGuiCol.FrameBgActive, ImGui.GetColorU32(ImGuiCol.FrameBgActive, 0.55f));
@@ -5855,8 +5852,8 @@ namespace BPSR_ZDPS.Windows
                 ImGui.SliderInt("##AttributeValueSize", ref ActiveTrackedEventEntry.AttributeValueSize, 16, 96);
                 ImGui.PopStyleColor(2);
 
-                ImGui.Checkbox("Use Custom Value Text Color##UseCustomAttributeValueTextColor", ref ActiveTrackedEventEntry.UseCustomAttributeValueTextColor);
-                ImGui.SetItemTooltip("Changes the color of Attribute Value Text.");
+                ImGui.Checkbox($"{AppStrings.GetLocalized("EventTracker_UseCustomValueTextColor")}##UseCustomAttributeValueTextColor", ref ActiveTrackedEventEntry.UseCustomAttributeValueTextColor);
+                ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_UseCustomValueTextColor_Tooltip"));
                 ImGui.SameLine();
                 ImGui.PushFont(HelperMethods.Fonts["FASIcons"], ImGui.GetFontSize());
                 if (ImGui.Button($"{FASIcons.CheckDouble}##ApplyAllCustomAttributeValueTextColorBtn"))
@@ -5871,7 +5868,7 @@ namespace BPSR_ZDPS.Windows
                     }
                 }
                 ImGui.PopFont();
-                ImGui.SetItemTooltip("Apply To All Other Trackers In Container.");
+                ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_ApplyToAllTrackers_Tooltip"));
 
                 if (ActiveTrackedEventEntry.UseCustomAttributeValueTextColor)
                 {
@@ -5883,13 +5880,13 @@ namespace BPSR_ZDPS.Windows
                 }
             }
 
-            ImGui.SeparatorText("Conditions");
+            ImGui.SeparatorText(AppStrings.GetLocalized("EventTracker_Section_Conditions"));
 
-            ImGui.Checkbox("Show 'Duration Ended' When No Remaining Duration", ref ActiveTrackedEventEntry.ShowDurationEnded);
-            ImGui.SetItemTooltip("Progress Bars are always hidden when there is no remaining duration. This only impacts Text.");
+            ImGui.Checkbox(AppStrings.GetLocalized("EventTracker_ShowDurationEndedWhenNoDuration"), ref ActiveTrackedEventEntry.ShowDurationEnded);
+            ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_ShowDurationEndedWhenNoDuration_Tooltip"));
 
             ImGui.AlignTextToFramePadding();
-            ImGui.TextUnformatted("Hide Tracker Condition:");
+            ImGui.TextUnformatted(AppStrings.GetLocalized("EventTracker_HideTrackerCondition"));
             ImGui.SameLine();
             ImGui.SetNextItemWidth(-1);
             if (ImGui.BeginCombo("##HideTrackerConditionCombo", ActiveTrackedEventEntry.HideTrackerCondition.ToString()))
@@ -5915,7 +5912,7 @@ namespace BPSR_ZDPS.Windows
             {
                 ImGui.Indent();
                 ImGui.AlignTextToFramePadding();
-                ImGui.TextUnformatted("Specific Event:");
+                ImGui.TextUnformatted(AppStrings.GetLocalized("EventTracker_SpecificEvent"));
                 ImGui.SameLine();
                 ImGui.SetNextItemWidth(-1);
                 if (ImGui.BeginCombo("##HideOnSpecificBuffEventValueCombo", ActiveTrackedEventEntry.HideOnSpecificBuffEventValue.ToString()))
@@ -5939,18 +5936,18 @@ namespace BPSR_ZDPS.Windows
                 ImGui.Unindent();
             }
 
-            ImGui.Checkbox("Only Display One Tracker Instance", ref ActiveTrackedEventEntry.OnlyDisplayOneTrackerInstance);
-            ImGui.SetItemTooltip("Limits the display of instances for this Tracker to only one at a time.\nIMPORTANT: This may still result in triggers for each instance!");
+            ImGui.Checkbox(AppStrings.GetLocalized("EventTracker_OnlyDisplayOneTrackerInstance"), ref ActiveTrackedEventEntry.OnlyDisplayOneTrackerInstance);
+            ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_OnlyDisplayOneTrackerInstance_Tooltip"));
 
-            ImGui.SeparatorText("Raid Warnings");
-            ImGui.TextUnformatted("Raid Warning Messages can be displayed during certain events.");
+            ImGui.SeparatorText(AppStrings.GetLocalized("EventTracker_Section_RaidWarnings"));
+            ImGui.TextUnformatted(AppStrings.GetLocalized("EventTracker_RaidWarnings_Desc"));
 
             ImGui.Indent();
             int raidWarningIdx = 0;
             int raidWarningToRemove = -1;
             foreach (var raidWarningData in ActiveTrackedEventEntry.RaidWarningTrackerDatas)
             {
-                ImGui.TextUnformatted("Is Enabled: ");
+                ImGui.TextUnformatted(AppStrings.GetLocalized("EventTracker_IsEnabled"));
                 ImGui.SameLine();
                 ImGui.Checkbox($"##IsEnabled_{raidWarningIdx}", ref raidWarningData.IsEnabled);
 
@@ -5961,17 +5958,17 @@ namespace BPSR_ZDPS.Windows
                     raidWarningToRemove = raidWarningIdx;
                 }
                 ImGui.PopStyleColor();
-                ImGui.SetItemTooltip("Delete Raid Warning Event");
+                ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_DeleteRaidWarning_Tooltip"));
                 ImGui.SameLine();
-                ImGui.SeparatorText($"Raid Warning Activation Type: {raidWarningData.ActivationType}");
+                ImGui.SeparatorText($"{AppStrings.GetLocalized("EventTracker_RaidWarningActivationType")} {raidWarningData.ActivationType}");
 
                 ImGui.BeginDisabled(!raidWarningData.IsEnabled);
 
                 ImGui.AlignTextToFramePadding();
-                ImGui.TextUnformatted("Perform Value Condition Check: ");
+                ImGui.TextUnformatted(AppStrings.GetLocalized("EventTracker_PerformValueConditionCheck"));
                 ImGui.SameLine();
                 ImGui.Checkbox($"##ValueConditionCheck_{raidWarningIdx}", ref raidWarningData.UseConditionValueCheck);
-                ImGui.SetItemTooltip("If an additional check should be performed to determine if this Raid Warning should be executed.\nOnly works if the Activation Type supports this check.");
+                ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_PerformValueConditionCheck_Tooltip"));
 
                 ImGui.BeginDisabled(!raidWarningData.UseConditionValueCheck);
                 ImGui.SameLine();
@@ -6010,15 +6007,15 @@ namespace BPSR_ZDPS.Windows
                 ImGui.EndDisabled();
 
                 ImGui.AlignTextToFramePadding();
-                ImGui.TextUnformatted("Message Text: ");
+                ImGui.TextUnformatted(AppStrings.GetLocalized("EventTracker_MessageText"));
                 ImGui.SameLine();
                 ImGui.SetNextItemWidth(-1);
                 ImGui.InputText($"##RaidWarningMessageText_{raidWarningIdx}", ref raidWarningData.MessageFormat, 512);
                 if (ImGui.BeginItemTooltip())
                 {
-                    ImGui.TextUnformatted("Messages support a number of replacement operations:");
-                    ImGui.TextUnformatted("Owner (Prefix): When NOT a Buff, this is who is actively casting. If Buff, is the entity gaining the Buff.");
-                    ImGui.TextUnformatted("Caster (Prefix): When dealing with Buffs, this is who applied the Buff.");
+                    ImGui.TextUnformatted(AppStrings.GetLocalized("EventTracker_MessageText_Tooltip_Line1"));
+                    ImGui.TextUnformatted(AppStrings.GetLocalized("EventTracker_MessageText_Tooltip_Owner"));
+                    ImGui.TextUnformatted(AppStrings.GetLocalized("EventTracker_MessageText_Tooltip_Caster"));
                     ImGui.Indent();
                     ImGui.TextUnformatted("{<Prefix>EntityName}: Name of entity.");
                     ImGui.TextUnformatted("{<Prefix>EntityHp}: Current HP.");
@@ -6034,13 +6031,11 @@ namespace BPSR_ZDPS.Windows
 
                     ImGui.EndTooltip();
                 }
-                ImGui.Checkbox($"Play Raid Warning Sound##PlayRaidSound_{raidWarningIdx}", ref raidWarningData.PlaySound);
+                ImGui.Checkbox($"{AppStrings.GetLocalized("EventTracker_PlayRaidWarningSound")}##PlayRaidSound_{raidWarningIdx}", ref raidWarningData.PlaySound);
                 ImGui.BeginDisabled(!raidWarningData.PlaySound);
                 ImGui.Indent();
-                ImGui.InputTextWithHint($"##CustomSoundPath_{raidWarningIdx}", "Default Raid Warning Sound", ref raidWarningData.CustomSoundPath, 512);
-                ImGui.SetItemTooltip("File path to a sound to play. Must be in MP3 or WAV format.\n" +
-                    "The file path starts in the ZDPS 'Data\\Audio' directory. It is suggested to put custom sounds in a new Custom sub-folder.\n" +
-                    "Example paths may look like: 'Custom\\NewAlert.wav' or '..\\CustomAudio\\Sounds\\NewAlert2.mp3'");
+                ImGui.InputTextWithHint($"##CustomSoundPath_{raidWarningIdx}", AppStrings.GetLocalized("EventTracker_DefaultRaidWarningSound"), ref raidWarningData.CustomSoundPath, 512);
+                ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_CustomSoundPath_Tooltip"));
                 ImGui.Unindent();
                 ImGui.EndDisabled();
                 ImGui.Separator();
@@ -6057,7 +6052,7 @@ namespace BPSR_ZDPS.Windows
             }
 
             ImGui.PushStyleColor(ImGuiCol.Button, Colors.DarkGreen_Transparent);
-            if (ImGui.Button("Add New Event##NewRaidWarningEventBtn"))
+            if (ImGui.Button($"{AppStrings.GetLocalized("EventTracker_AddNewEvent")}##NewRaidWarningEventBtn"))
             {
                 ImGui.SetNextWindowPos(ImGui.GetItemRectMin(), ImGuiCond.Appearing, new Vector2(0, 1));
                 ImGui.OpenPopup("##NewRaidWarningEventListPopup");
@@ -6083,7 +6078,7 @@ namespace BPSR_ZDPS.Windows
 
                 if (addedCount == 0)
                 {
-                    ImGui.TextUnformatted("[No Events To Add]");
+                    ImGui.TextUnformatted(AppStrings.GetLocalized("EventTracker_NoEventsToAdd"));
                 }
                 ImGui.EndPopup();
             }
@@ -6092,7 +6087,7 @@ namespace BPSR_ZDPS.Windows
         private static void DrawWhoToTrack()
         {
             ImGui.AlignTextToFramePadding();
-            ImGui.TextUnformatted("Who To Track:");
+            ImGui.TextUnformatted(AppStrings.GetLocalized("EventTracker_WhoToTrack"));
             ImGui.SameLine();
             ImGui.SetNextItemWidth(-1);
             if (ImGui.BeginCombo("##TrackedEntityType", ActiveTrackedEventEntry.TrackedEntityType.ToString(), ImGuiComboFlags.None))
@@ -6119,7 +6114,7 @@ namespace BPSR_ZDPS.Windows
             if (ActiveTrackedEventEntry.TrackedEntityType == ETrackedEntityType.DefinedTarget)
             {
                 // TODO: Show input box for entering Target data
-                ImGui.TextUnformatted("Target UID or Name [Requires UUID Currently - In Debug Tab of Entity Inspector]:");
+                ImGui.TextUnformatted(AppStrings.GetLocalized("EventTracker_TargetUID"));
                 long definedUuid = ActiveTrackedEventEntry.DefinedEntityTargetUuid;
                 unsafe
                 {
@@ -6130,14 +6125,14 @@ namespace BPSR_ZDPS.Windows
             if (ActiveTrackedEventEntry.TrackedEntityType == ETrackedEntityType.Everyone)
             {
                 ImGui.AlignTextToFramePadding();
-                ImGui.TextUnformatted("Exclude 'Self' From 'Everyone' Filter:");
+                ImGui.TextUnformatted(AppStrings.GetLocalized("EventTracker_ExcludeSelfFromEveryoneFilter"));
                 ImGui.SameLine();
                 ImGui.Checkbox("##ExcludeSelfFromEveryoneType", ref ActiveTrackedEventEntry.ExcludeSelfFromEveryoneType);
             }
             if (ActiveTrackedEventEntry.TrackedEntityType == ETrackedEntityType.Summons)
             {
                 ImGui.AlignTextToFramePadding();
-                ImGui.TextUnformatted("Only Track Summons From 'Self':");
+                ImGui.TextUnformatted(AppStrings.GetLocalized("EventTracker_OnlyTrackSummonsFromSelf"));
                 ImGui.SameLine();
                 ImGui.Checkbox("##OnlyTrackSummonsFromSelf", ref ActiveTrackedEventEntry.OnlyTrackSummonsFromSelf);
             }
@@ -6145,8 +6140,8 @@ namespace BPSR_ZDPS.Windows
 
         private static void DrawLoadTimeOptions()
         {
-            ImGui.TextUnformatted("Configure when the Tracker is allowed to run.");
-            ImGui.TextUnformatted("Note: The Tracker itself must also be Enabled.\nIf nothing below is Enabled, the Tracker will always be running.");
+            ImGui.TextUnformatted(AppStrings.GetLocalized("EventTracker_LoadEvents_Configure"));
+            ImGui.TextUnformatted(AppStrings.GetLocalized("EventTracker_LoadEvents_Note"));
 
             bool inCombat = false;
             DataTypes.Enums.Professions.ERoleType roleType = DataTypes.Enums.Professions.ERoleType.None;
@@ -6165,7 +6160,7 @@ namespace BPSR_ZDPS.Windows
             {
                 if (ImGui.BeginPopupContextItem(ImGuiPopupFlags.MouseButtonRight))
                 {
-                    if (ImGui.MenuItem("Apply To Other Trackers"))
+                    if (ImGui.MenuItem(AppStrings.GetLocalized("EventTracker_ApplyToOtherTrackers")))
                     {
                         foreach (var tracker in ActiveTrackerContainer.EventTrackers)
                         {
@@ -6179,29 +6174,29 @@ namespace BPSR_ZDPS.Windows
                 }
             };
 
-            ImGui.Checkbox("In Combat", ref ActiveTrackedEventEntry.LoadEvents.InCombat);
-            ImGui.SetItemTooltip($"Tracker is only Enabled during Active Combat.\nCurrent In Combat: {inCombat}");
+            ImGui.Checkbox(AppStrings.GetLocalized("EventTracker_LoadEvents_InCombat"), ref ActiveTrackedEventEntry.LoadEvents.InCombat);
+            ImGui.SetItemTooltip(string.Format(AppStrings.GetLocalized("EventTracker_LoadEvents_InCombat_Tooltip"), inCombat));
             HandleApplyToOthersContextMenu((tracker) => { tracker.LoadEvents.InCombat = ActiveTrackedEventEntry.LoadEvents.InCombat; });
 
-            ImGui.Checkbox("Not In Combat", ref ActiveTrackedEventEntry.LoadEvents.NotInCombat);
-            ImGui.SetItemTooltip($"Tracker is only Enabled when not in Active Combat.\nCurrent In Combat: {inCombat}");
+            ImGui.Checkbox(AppStrings.GetLocalized("EventTracker_LoadEvents_NotInCombat"), ref ActiveTrackedEventEntry.LoadEvents.NotInCombat);
+            ImGui.SetItemTooltip(string.Format(AppStrings.GetLocalized("EventTracker_LoadEvents_NotInCombat_Tooltip"), inCombat));
             HandleApplyToOthersContextMenu((tracker) => { tracker.LoadEvents.NotInCombat = ActiveTrackedEventEntry.LoadEvents.NotInCombat; });
 
-            ImGui.Checkbox("In Encounter", ref ActiveTrackedEventEntry.LoadEvents.InEncounter);
-            ImGui.SetItemTooltip($"Tracker is only Enabled while not in the Open World.\nNote: On ZDPS startup, you are always considered in the Open World until your first map change.\nCurrently In Encounter: {!BattleStateMachine.IsInOpenWorld()}");
+            ImGui.Checkbox(AppStrings.GetLocalized("EventTracker_LoadEvents_InEncounter"), ref ActiveTrackedEventEntry.LoadEvents.InEncounter);
+            ImGui.SetItemTooltip(string.Format(AppStrings.GetLocalized("EventTracker_LoadEvents_InEncounter_Tooltip"), !BattleStateMachine.IsInOpenWorld()));
             HandleApplyToOthersContextMenu((tracker) => { tracker.LoadEvents.InEncounter = ActiveTrackedEventEntry.LoadEvents.InEncounter; });
 
-            ImGui.Checkbox("Is Alive", ref ActiveTrackedEventEntry.LoadEvents.IsAlive);
-            ImGui.SetItemTooltip("Tracker is only Enabled while you are alive.");
+            ImGui.Checkbox(AppStrings.GetLocalized("EventTracker_LoadEvents_IsAlive"), ref ActiveTrackedEventEntry.LoadEvents.IsAlive);
+            ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_LoadEvents_IsAlive_Tooltip"));
             HandleApplyToOthersContextMenu((tracker) => { tracker.LoadEvents.IsAlive = ActiveTrackedEventEntry.LoadEvents.IsAlive; });
 
-            ImGui.Checkbox("Is Dead", ref ActiveTrackedEventEntry.LoadEvents.IsDead);
-            ImGui.SetItemTooltip("Tracker is only Enabled while you are dead.");
+            ImGui.Checkbox(AppStrings.GetLocalized("EventTracker_LoadEvents_IsDead"), ref ActiveTrackedEventEntry.LoadEvents.IsDead);
+            ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_LoadEvents_IsDead_Tooltip"));
             HandleApplyToOthersContextMenu((tracker) => { tracker.LoadEvents.IsDead = ActiveTrackedEventEntry.LoadEvents.IsDead; });
 
             ImGui.AlignTextToFramePadding();
-            ImGui.Checkbox("Is Role", ref ActiveTrackedEventEntry.LoadEvents.UseRoleTypes);
-            ImGui.SetItemTooltip($"Tracker is only Enabled while you are the selected Role(s).\nCurrent Role: {roleType}");
+            ImGui.Checkbox(AppStrings.GetLocalized("EventTracker_LoadEvents_IsRole"), ref ActiveTrackedEventEntry.LoadEvents.UseRoleTypes);
+            ImGui.SetItemTooltip(string.Format(AppStrings.GetLocalized("EventTracker_LoadEvents_IsRole_Tooltip"), roleType));
             HandleApplyToOthersContextMenu((tracker) =>
             {
                 tracker.LoadEvents.UseRoleTypes = ActiveTrackedEventEntry.LoadEvents.UseRoleTypes;
@@ -6236,8 +6231,8 @@ namespace BPSR_ZDPS.Windows
             }
             ImGui.EndDisabled();
 
-            ImGui.Checkbox("Is Profession", ref ActiveTrackedEventEntry.LoadEvents.UseProfession);
-            ImGui.SetItemTooltip($"Tracker is only Enabled while you are the selected Profession(s).\nCurrent Profession: {profession}");
+            ImGui.Checkbox(AppStrings.GetLocalized("EventTracker_LoadEvents_IsProfession"), ref ActiveTrackedEventEntry.LoadEvents.UseProfession);
+            ImGui.SetItemTooltip(string.Format(AppStrings.GetLocalized("EventTracker_LoadEvents_IsProfession_Tooltip"), profession));
             HandleApplyToOthersContextMenu((tracker) =>
             {
                 tracker.LoadEvents.UseProfession = ActiveTrackedEventEntry.LoadEvents.UseProfession;
@@ -6272,8 +6267,8 @@ namespace BPSR_ZDPS.Windows
             }
             ImGui.EndDisabled();
 
-            ImGui.Checkbox("Is SubProfession", ref ActiveTrackedEventEntry.LoadEvents.UseSubProfession);
-            ImGui.SetItemTooltip($"Tracker is only Enabled while you are the selected SubProfession(s).\nCurrent SubProfession: {subProfession}");
+            ImGui.Checkbox(AppStrings.GetLocalized("EventTracker_LoadEvents_IsSubProfession"), ref ActiveTrackedEventEntry.LoadEvents.UseSubProfession);
+            ImGui.SetItemTooltip(string.Format(AppStrings.GetLocalized("EventTracker_LoadEvents_IsSubProfession_Tooltip"), subProfession));
             HandleApplyToOthersContextMenu((tracker) =>
             {
                 tracker.LoadEvents.UseSubProfession = ActiveTrackedEventEntry.LoadEvents.UseSubProfession;
@@ -6309,8 +6304,8 @@ namespace BPSR_ZDPS.Windows
             ImGui.EndDisabled();
 
             ImGui.AlignTextToFramePadding();
-            ImGui.Checkbox("In SceneId:", ref ActiveTrackedEventEntry.LoadEvents.UseSceneIds);
-            ImGui.SetItemTooltip($"Tracker is only Enabled while you are in the selected SceneId(s).\nFormat: Comma delimited list of Scene Id numbers.\nCurrent SceneId: {EncounterManager.Current?.SceneId}");
+            ImGui.Checkbox(AppStrings.GetLocalized("EventTracker_LoadEvents_InSceneId"), ref ActiveTrackedEventEntry.LoadEvents.UseSceneIds);
+            ImGui.SetItemTooltip(string.Format(AppStrings.GetLocalized("EventTracker_LoadEvents_InSceneId_Tooltip"), EncounterManager.Current?.SceneId));
             HandleApplyToOthersContextMenu((tracker) =>
             {
                 tracker.LoadEvents.UseSceneIds = ActiveTrackedEventEntry.LoadEvents.UseSceneIds;
@@ -6319,14 +6314,14 @@ namespace BPSR_ZDPS.Windows
             });
             ImGui.BeginDisabled(!ActiveTrackedEventEntry.LoadEvents.UseSceneIds);
             ImGui.SameLine();
-            if (ImGui.Button("Select..."))
+            if (ImGui.Button(AppStrings.GetLocalized("EventTracker_LoadEvents_Select")))
             {
                 ImGui.SetNextWindowPos(ImGui.GetItemRectMax(), ImGuiCond.Appearing, new Vector2(1, 1));
                 ImGui.OpenPopup("##SceneIdListPopup");
             }
             if (ImGui.BeginPopup("##SceneIdListPopup"))
             {
-                if (ImGui.BeginCombo("##SceneIdListCombo", "Select A SceneId To Add"))
+                if (ImGui.BeginCombo("##SceneIdListCombo", AppStrings.GetLocalized("EventTracker_LoadEvents_SelectSceneId")))
                 {
                     foreach (var sceneIds in HelperMethods.DataTables.Scenes.Data)
                     {
@@ -6358,32 +6353,32 @@ namespace BPSR_ZDPS.Windows
 
             ImGui.EndDisabled();
 
-            ImGui.SeparatorText("Data Owner Related Options");
+            ImGui.SeparatorText(AppStrings.GetLocalized("EventTracker_Section_DataOwnerRelated"));
             ImGui.Indent();
             ImGui.BeginDisabled();
-            ImGui.TextWrapped("Note: These are checked after the Container is created.\nYou may see the Container appear even if the state of these would otherwise hide it.");
+            ImGui.TextWrapped(AppStrings.GetLocalized("EventTracker_DataOwnerRelated_Note"));
             ImGui.EndDisabled();
             ImGui.Unindent();
 
-            ImGui.Checkbox("Is Owner Alive", ref ActiveTrackedEventEntry.LoadEvents.IsOwnerAlive);
-            ImGui.SetItemTooltip("Tracker is only Enabled while the Owner is alive.");
+            ImGui.Checkbox(AppStrings.GetLocalized("EventTracker_LoadEvents_IsOwnerAlive"), ref ActiveTrackedEventEntry.LoadEvents.IsOwnerAlive);
+            ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_LoadEvents_IsOwnerAlive_Tooltip"));
             HandleApplyToOthersContextMenu((tracker) => { tracker.LoadEvents.IsOwnerAlive = ActiveTrackedEventEntry.LoadEvents.IsOwnerAlive; });
 
-            ImGui.Checkbox("Is Owner Dead", ref ActiveTrackedEventEntry.LoadEvents.IsOwnerDead);
-            ImGui.SetItemTooltip("Tracker is only Enabled while the Owner is dead.");
+            ImGui.Checkbox(AppStrings.GetLocalized("EventTracker_LoadEvents_IsOwnerDead"), ref ActiveTrackedEventEntry.LoadEvents.IsOwnerDead);
+            ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_LoadEvents_IsOwnerDead_Tooltip"));
             HandleApplyToOthersContextMenu((tracker) => { tracker.LoadEvents.IsOwnerDead = ActiveTrackedEventEntry.LoadEvents.IsOwnerDead; });
 
-            ImGui.SeparatorText("Extra Options");
-            ImGui.Checkbox("Keep On Scene Change", ref ActiveTrackedEventEntry.LoadEvents.KeepOnSceneChange);
-            ImGui.SetItemTooltip("The Tracker will persist through Scene (Map) changes.\nNote: Encounter events like wipes will still remove it.");
+            ImGui.SeparatorText(AppStrings.GetLocalized("EventTracker_Section_ExtraOptions"));
+            ImGui.Checkbox(AppStrings.GetLocalized("EventTracker_LoadEvents_KeepOnSceneChange"), ref ActiveTrackedEventEntry.LoadEvents.KeepOnSceneChange);
+            ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_LoadEvents_KeepOnSceneChange_Tooltip"));
             HandleApplyToOthersContextMenu((tracker) => { tracker.LoadEvents.KeepOnSceneChange = ActiveTrackedEventEntry.LoadEvents.KeepOnSceneChange; });
 
-            ImGui.Checkbox("Keep On Wipe", ref ActiveTrackedEventEntry.LoadEvents.KeepOnWipe);
-            ImGui.SetItemTooltip("The Tracker will persist through wipes.");
+            ImGui.Checkbox(AppStrings.GetLocalized("EventTracker_LoadEvents_KeepOnWipe"), ref ActiveTrackedEventEntry.LoadEvents.KeepOnWipe);
+            ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_LoadEvents_KeepOnWipe_Tooltip"));
             HandleApplyToOthersContextMenu((tracker) => { tracker.LoadEvents.KeepOnWipe = ActiveTrackedEventEntry.LoadEvents.KeepOnWipe; });
 
-            ImGui.Checkbox("Keep On Restart", ref ActiveTrackedEventEntry.LoadEvents.KeepOnRestart);
-            ImGui.SetItemTooltip("The Tracker will persist through Restart events. These are typically when a Raid Boss is killed.");
+            ImGui.Checkbox(AppStrings.GetLocalized("EventTracker_LoadEvents_KeepOnRestart"), ref ActiveTrackedEventEntry.LoadEvents.KeepOnRestart);
+            ImGui.SetItemTooltip(AppStrings.GetLocalized("EventTracker_LoadEvents_KeepOnRestart_Tooltip"));
             HandleApplyToOthersContextMenu((tracker) => { tracker.LoadEvents.KeepOnRestart = ActiveTrackedEventEntry.LoadEvents.KeepOnRestart; });
         }
 
