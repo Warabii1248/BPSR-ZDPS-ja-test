@@ -13,6 +13,11 @@ namespace BPSR_ZDPS.DataTypes.Modules
         public bool ValueAllStats = true;
         public int NumModules = 5;
 
+        // Which score the optimizer maximizes/ranks by.
+        public ScoreMode ScoreMode = ScoreMode.ZScore;
+        // Prefer the GPU (DirectCompute) backend; falls back to CPU automatically when unavailable.
+        public bool UseGpu = true;
+
         public string SaveToString(bool asBase64 = false)
         {
             var sb = new StringBuilder();

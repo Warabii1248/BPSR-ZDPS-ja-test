@@ -31,6 +31,18 @@ namespace BPSR_ZDPS.Managers
             {
                 result = NormalV2(config, playerMods, sw, filtered, cancelToken);
             }
+            else if (mode == SolverModes.Gpu)
+            {
+                try
+                {
+                    result = GpuSolve(config, playerMods, sw, filtered, cancelToken);
+                }
+                catch (Exception ex)
+                {
+                    Log.Warning(ex, "GPU solve failed; falling back to NormalV2 (CPU).");
+                    result = NormalV2(config, playerMods, sw, filtered, cancelToken);
+                }
+            }
 
             Log.Information($"Combos took: {sw.Elapsed}");
 
@@ -132,6 +144,11 @@ namespace BPSR_ZDPS.Managers
                 var mods = modSet.ModuleSet.Mods;
                 for (int i = 0; i < mods.Length; i++)
                 {
+                    if (mods[i] == -1)
+                    {
+                        break;
+                    }
+
                     var modId = filtered[mods[i]];
                     var powerCores = GetModPowerCores(playerMods, modId);
                     foreach (var powerCore in powerCores)
@@ -263,6 +280,11 @@ namespace BPSR_ZDPS.Managers
                 var mods = modSet.ModuleSet.Mods;
                 for (int i = 0; i < mods.Length; i++)
                 {
+                    if (mods[i] == -1)
+                    {
+                        break;
+                    }
+
                     var modId = filtered[mods[i]];
                     var powerCores = GetModPowerCores(playerMods, modId);
                     foreach (var powerCore in powerCores)
@@ -524,7 +546,7 @@ namespace BPSR_ZDPS.Managers
                                 modStatValues[j] +
                                 modStatValues[k] +
                                 modStatValues[l] +
-                                modStatValues[1]);
+                                modStatValues[a]);
 
                             bool keepGoing = InnerStatsWeightCalcs(modStatMultplier, statCap, statMinsVec, statReqsVec, breakPointBoosts, ref topBest, ref combo, statsMask, hasExactStatMode, sums);
                             if (!keepGoing)
