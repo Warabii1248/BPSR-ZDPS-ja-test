@@ -47,6 +47,7 @@
     </EmbeddedResource>
     <EmbeddedResource Include="Fonts\SourceHanSansSC-Regular.otf" />
     <EmbeddedResource Include="Resources\MainWindowIcon.png" />
+    <EmbeddedResource Include="Shaders\ModuleSolver.hlsl" />
   </ItemGroup>
 
   <ItemGroup>

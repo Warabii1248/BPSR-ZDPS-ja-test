@@ -61,25 +61,14 @@ namespace BPSR_ZDPS.Managers
             foreach (var best in bests)
             {
                 var result = new ModComboResult();
-                result.ModuleSet = new ModuleSet()
-                {
-                    Mod1 = best.Items.Count >= 1 ? (int)best.Items[0].Id : -1,
-                    Mod2 = best.Items.Count >= 2 ? (int)best.Items[1].Id : -1,
-                    Mod3 = best.Items.Count >= 3 ? (int)best.Items[2].Id : -1,
-                    Mod4 = best.Items.Count >= 4 ? (int)best.Items[3].Id : -1,
-                    Mod5 = best.Items.Count >= 5? (int)best.Items[4].Id : -1
-                };
+
+                var localIndices = best.Items.Select(it => (int)it.Id).ToList();
+                result.ModuleSet = ModuleSet.FromValues(localIndices);
 
                 var coreStats = new Dictionary<long, PowerCore>();
-                var mods = result.ModuleSet.Mods;
-                for (int i = 0; i < mods.Length; i++)
+                foreach (var localIdx in localIndices)
                 {
-                    if (mods[i] == -1)
-                    {
-                        break;
-                    }
-
-                    var modId = filtered[mods[i]];
+                    var modId = filtered[localIdx];
                     var powerCores = GetModPowerCores(playerMods, modId);
                     foreach (var powerCore in powerCores)
                     {
@@ -95,49 +84,7 @@ namespace BPSR_ZDPS.Managers
                     }
                 }
 
-                var reslovedModSet = config.NumModules switch
-                {
-                    5 => new ModuleSet()
-                    {
-                        Mod1 = (int)filtered[mods[0]],
-                        Mod2 = (int)filtered[mods[1]],
-                        Mod3 = (int)filtered[mods[2]],
-                        Mod4 = (int)filtered[mods[3]],
-                        Mod5 = (int)filtered[mods[4]]
-                    },
-
-                    4 => new ModuleSet()
-                    {
-                        Mod1 = (int)filtered[mods[0]],
-                        Mod2 = (int)filtered[mods[1]],
-                        Mod3 = (int)filtered[mods[2]],
-                        Mod4 = (int)filtered[mods[3]]
-                    },
-
-                    3 => new ModuleSet()
-                    {
-                        Mod1 = (int)filtered[mods[0]],
-                        Mod2 = (int)filtered[mods[1]],
-                        Mod3 = (int)filtered[mods[2]],
-                        Mod4 = -1
-                    },
-
-                    2 => new ModuleSet()
-                    {
-                        Mod1 = (int)filtered[mods[0]],
-                        Mod2 = (int)filtered[mods[1]],
-                        Mod3 = -1,
-                        Mod4 = -1
-                    },
-
-                    1 => new ModuleSet()
-                    {
-                        Mod1 = (int)filtered[mods[0]],
-                        Mod2 = -1,
-                        Mod3 = -1,
-                        Mod4 = -1
-                    }
-                };
+                var reslovedModSet = ModuleSet.FromValues(localIndices.Select(ix => (int)filtered[ix]).ToList());
 
                 result.Stats = OrderPowerCoresByPriorities(coreStats.Values.ToArray(), config.StatPriorities);
                 result.Score = 0;
