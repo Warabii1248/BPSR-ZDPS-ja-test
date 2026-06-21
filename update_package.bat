@@ -16,6 +16,8 @@ mkdir ZDPS_UpdatePackage\Data
 copy /Y publish_new\BPSR-ZDPS.exe ZDPS_UpdatePackage\BPSR-ZDPS.exe
 copy /Y BPSR-ZDPS\Data\AppStrings.en.json ZDPS_UpdatePackage\Data\AppStrings.en.json
 copy /Y BPSR-ZDPS\Data\AppStrings.ja.json ZDPS_UpdatePackage\Data\AppStrings.ja.json
+copy /Y BPSR-ZDPS\Data\AppStrings.ext.en.json ZDPS_UpdatePackage\Data\AppStrings.ext.en.json
+copy /Y BPSR-ZDPS\Data\AppStrings.ext.ja.json ZDPS_UpdatePackage\Data\AppStrings.ext.ja.json
 
 if exist ZDPS_UpdatePackage.zip del /q ZDPS_UpdatePackage.zip
 powershell -NoProfile -Command "Compress-Archive -Path 'ZDPS_UpdatePackage\*' -DestinationPath 'ZDPS_UpdatePackage.zip' -Force"
