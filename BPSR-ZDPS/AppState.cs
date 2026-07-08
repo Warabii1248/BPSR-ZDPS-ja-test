@@ -316,48 +316,46 @@ namespace BPSR_ZDPS
 
         public static void LoadAppStringsTable()
         {
+            Dictionary<string, string> combinedLocs = new();
+
             // Always load English first as the base since additional configurations (if needed) may exist only in it
-            string appStringsExFile = Path.Combine(Utils.DATA_DIR_NAME, "AppStrings.en.json");
-            if (File.Exists(appStringsExFile))
-            {
-                var appStrings = JsonConvert.DeserializeObject<Dictionary<string, string>>(File.ReadAllText(appStringsExFile));
-                AppStrings.Locs = appStrings.ToFrozenDictionary();
-                Log.Information("Loaded AppStrings.en.json");
-            }
+            MergeAppStringsFile(combinedLocs, "AppStrings.en.json");
+            // Fork-only additions/overrides kept in a separate overlay so the upstream
+            // AppStrings.en.json stays untouched and easy to merge on updates.
+            MergeAppStringsFile(combinedLocs, "AppStrings.ext.en.json");
 
             if (!string.IsNullOrEmpty(Settings.Instance.Language) && Settings.Instance.Language != "en")
             {
-                string appStringsLocFile = Path.Combine(Utils.DATA_DIR_NAME, $"AppStrings.{Settings.Instance.Language}.json");
-                if (File.Exists(appStringsLocFile))
+                string lang = Settings.Instance.Language;
+                if (!MergeAppStringsFile(combinedLocs, $"AppStrings.{lang}.json"))
                 {
-                    var appStrings = JsonConvert.DeserializeObject<Dictionary<string, string>>(File.ReadAllText(appStringsLocFile));
-                    Dictionary<string, string> combinedLocs = AppStrings.Locs.ToDictionary();
-                    foreach (var loc in appStrings)
-                    {
-                        combinedLocs[loc.Key] = loc.Value;
-                    }
-                    AppStrings.Locs = combinedLocs.ToFrozenDictionary();
-                    Log.Information($"Loaded {$"AppStrings.{Settings.Instance.Language}.json"}");
+                    Log.Error($"Failed to loaded {$"AppStrings.{lang}.json"}");
                 }
-                else
-                {
-                    Log.Error($"Failed to loaded {$"AppStrings.{Settings.Instance.Language}.json"}");
-                }
+                // Fork-only localized additions/overrides for the active language.
+                MergeAppStringsFile(combinedLocs, $"AppStrings.ext.{lang}.json");
+            }
 
-                // Load ext overlay for language (fork-specific strings)
-                string appStringsExtLocFile = Path.Combine(Utils.DATA_DIR_NAME, $"AppStrings.ext.{Settings.Instance.Language}.json");
-                if (File.Exists(appStringsExtLocFile))
+            AppStrings.Locs = combinedLocs.ToFrozenDictionary();
+        }
+
+        static bool MergeAppStringsFile(Dictionary<string, string> target, string fileName)
+        {
+            string path = Path.Combine(Utils.DATA_DIR_NAME, fileName);
+            if (!File.Exists(path))
+            {
+                return false;
+            }
+
+            var appStrings = JsonConvert.DeserializeObject<Dictionary<string, string>>(File.ReadAllText(path));
+            if (appStrings != null)
+            {
+                foreach (var loc in appStrings)
                 {
-                    var appStringsExt = JsonConvert.DeserializeObject<Dictionary<string, string>>(File.ReadAllText(appStringsExtLocFile));
-                    Dictionary<string, string> combinedLocs = AppStrings.Locs.ToDictionary();
-                    foreach (var loc in appStringsExt)
-                    {
-                        combinedLocs[loc.Key] = loc.Value;
-                    }
-                    AppStrings.Locs = combinedLocs.ToFrozenDictionary();
-                    Log.Information($"Loaded {$"AppStrings.ext.{Settings.Instance.Language}.json"}");
+                    target[loc.Key] = loc.Value;
                 }
             }
+            Log.Information($"Loaded {fileName}");
+            return true;
         }
 
         public static void LoadSkillOverridesTable()
