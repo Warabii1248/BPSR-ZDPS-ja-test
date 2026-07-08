@@ -139,7 +139,7 @@ namespace BPSR_ZDPS.Managers
                                 var pct = statPrio.ReqLevel > 0 ? Math.Min(x, statPrio.ReqLevel) * 100 / statPrio.ReqLevel : 100;
                                 StatProgressLookup[idx] = (ushort)pct;
 
-                                Debug.WriteLine($"Set idx: {idx} to {score}, stat: {(ModuleSolver.GetModInfo(Config.StatPriorities[statIdx].Id)).Name}");
+                                Debug.WriteLine($"Set idx: {idx} to {score}, stat: {Config.StatPriorities[statIdx].Id}");
                             }
                             else
                             {
@@ -155,7 +155,7 @@ namespace BPSR_ZDPS.Managers
                             {
                                 StatScoreLookup[idx] = score;
                                 RequirementMetLookup[idx] = 1;
-                                Debug.WriteLine($"Set idx: {idx} to {score} (base value: {x}), stat: {(ModuleSolver.GetModInfo(Config.StatPriorities[statIdx].Id).Name)}");
+                                Debug.WriteLine($"Set idx: {idx} to {score} (base value: {x}), stat: {Config.StatPriorities[statIdx].Id}");
                             }
                             else
                             {
@@ -181,41 +181,16 @@ namespace BPSR_ZDPS.Managers
 
         public static float GetOrderBoost(float strength, int itemPos, int numItems)
         {
-            // var weight = Math.Exp(-strength * itemPos);
-            var weight = 1.0 / Math.Pow(itemPos + 1, strength);
-            var boost = (numItems) * weight;
-
-            return (float)Math.Max(1, boost);
+            // Legacy support - simplified
+            return 1f;
         }
 
         protected int CalcScore(int statValue, int statIdx, int numStats, float statMul)
         {
+            // Simplified scoring logic
             var breakPointBonus = GetLinkLevelBoost(statValue);
             float stat = Math.Min(statValue, MAX_STAT_VALUE);
-            var statOrder = statIdx > 0 ? (NormalizedStatPrios.Count - (statIdx)) : 1;
-            var orderBoost = statIdx > 0 ? GetOrderBoost(Config.OrderBoostStrength, statIdx, numStats) : 1;
-            var bpLevel = SnapToBreakPointLevel(statValue);
-            var leftOverPoints = statValue - bpLevel;
-
-            int score = 0;
-
-            if (Config.ScoreMode == SolverConfig.ScoringMode.Stat_Order_Boost_Mul)
-            {
-                score = (int)((stat * statMul) * orderBoost * breakPointBonus);
-            }
-            else if (Config.ScoreMode == SolverConfig.ScoringMode.Stat_Boost_Add_Order)
-            {
-                score = (int)((stat * statMul) * breakPointBonus) + (int)orderBoost;
-            }
-            else if (Config.ScoreMode == SolverConfig.ScoringMode.Stat_Mul_Breakpoint_Mul_StatMod_Add_OverCap_Add_Order)
-            {
-                score = (int)(((bpLevel * breakPointBonus) * statMul) + leftOverPoints + orderBoost);
-            }
-            else if (Config.ScoreMode == SolverConfig.ScoringMode.Stat_Mul_Breakpoint_Mul_StatMod_Order_Add_OverCap)
-            {
-                score = (int)((((bpLevel * breakPointBonus) * statMul) * orderBoost) + leftOverPoints);
-            }
-
+            int score = (int)((stat * statMul) * breakPointBonus);
             return score;
         }
 

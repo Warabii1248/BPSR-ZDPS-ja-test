@@ -441,13 +441,7 @@ namespace BPSR_ZDPS.Managers.Modules
         {
             if (statId > 0)
             {
-                var isLegendary = ModuleSolver.LegendaryStats.Contains(statId);
-                if (isLegendary)
-                {
-                    return Config.LegendaryStatMultiplier;
-                }
-
-                return 1;
+                return 1f;
             }
             else
             {

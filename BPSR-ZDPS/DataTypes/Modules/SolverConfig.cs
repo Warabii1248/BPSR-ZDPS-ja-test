@@ -12,9 +12,6 @@ namespace BPSR_ZDPS.DataTypes.Modules
         public byte[] LinkLevelBonus = DefaultLinkLevels;
         public bool ValueAllStats = true;
         public int NumModules = 5;
-        public ScoringMode ScoreMode = ScoringMode.Stat_Mul_Breakpoint_Mul_StatMod_Order_Add_OverCap;
-        public float OrderBoostStrength = 1f;
-        public float LegendaryStatMultiplier = 2f;
 
         // Which score the optimizer maximizes/ranks by.
         public ScoreMode ScoreMode = ScoreMode.ZScore;
@@ -106,19 +103,10 @@ namespace BPSR_ZDPS.DataTypes.Modules
                 ValueAllStats = ValueAllStats,
                 NumModules = NumModules,
                 ScoreMode = ScoreMode,
-                OrderBoostStrength = OrderBoostStrength,
-                LegendaryStatMultiplier = LegendaryStatMultiplier
+                UseGpu = UseGpu
             };
 
             return copy;
-        }
-
-        public enum ScoringMode
-        {
-            Stat_Order_Boost_Mul,
-            Stat_Boost_Add_Order,
-            Stat_Mul_Breakpoint_Mul_StatMod_Add_OverCap_Add_Order,
-            Stat_Mul_Breakpoint_Mul_StatMod_Order_Add_OverCap
         }
     }
 }
