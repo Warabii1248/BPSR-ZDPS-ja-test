@@ -14,6 +14,11 @@ namespace BPSR_ZDPS.Managers
         private byte[] RequirementMetLookup;
         private ushort[] StatProgressLookup;
         private byte[] StatIndexes;
+        private int[] LinkTotalFightLookup = [];
+        private int MaxLinkTotal;
+        private static readonly int[] EnhanceTiers = [1, 4, 8, 12, 16, 20];
+
+        private bool CombatMode => Config.ScoreMode == ScoreMode.CombatPower;
 
         public ModuleOptimizerBeam(SolverConfig config, PlayerModDataSave playerMods, Stopwatch sw, List<long> filtered, CancellationToken cancelToken) : base(config, playerMods, sw, filtered, cancelToken)
         {
@@ -27,11 +32,17 @@ namespace BPSR_ZDPS.Managers
         {
             StatIndexes = NormalizedStatPrios.Select(x => (byte)x.Id).ToArray();
             BuildStatScoreLookup(NormalizedStatPrios);
+            if (CombatMode)
+            {
+                BuildLinkTotalFightLookup();
+            }
 
             var beam = new List<BeamNode>();
             beam.Add(new BeamNode() { Score = 0, CurrentSet = new ModuleSetIndices() });
 
-            for (int i = 0; i < Config.NumModules; i++)
+            // Clamp like the GPU path does; ModArr is a fixed buffer of MaxModules entries.
+            var numModules = Math.Clamp(Config.NumModules, 1, ModuleSet.MaxModules);
+            for (int i = 0; i < numModules; i++)
             {
                 var candidates = new List<BeamNode>();
 
@@ -47,7 +58,7 @@ namespace BPSR_ZDPS.Managers
                             var skip = false;
                             unsafe
                             {
-                                for (int modIdx2 = 0; modIdx2 < Config.NumModules; modIdx2++)
+                                for (int modIdx2 = 0; modIdx2 < numModules; modIdx2++)
                                 {
                                     if (node.CurrentSet.ModArr[modIdx2] == modIdx)
                                     {
@@ -113,23 +124,27 @@ namespace BPSR_ZDPS.Managers
 
         protected void BuildStatScoreLookup(List<StatPrio> statPrios)
         {
+            // normalized index -> original stat id (needed for legendary lookup and combat FightValues)
+            var origByNorm = PossibleStats.ToDictionary(kv => kv.Value, kv => kv.Key);
+
             for (int i = 0; i < Vector<byte>.Count; i++)
             {
+                origByNorm.TryGetValue(i, out var origStatId); // 0 when this lane maps to no stat
+
                 for (int x = 0; x <= MAX_STAT_VALUE_TOTAL; x++)
                 {
                     var idx = i * (MAX_STAT_VALUE_TOTAL + 1) + x;
                     var statPrio = statPrios.FirstOrDefault(stat => stat.Id == i);
-                    var statIdx = statPrios.IndexOf(statPrio);
 
                     if (statPrio != null)
                     {
-                        var realStatId = Config.StatPriorities[statIdx];
+                        var prioPos = Config.StatPriorities.FindIndex(p => p.Id == origStatId);
                         var reqLevel = Math.Max((byte)0, statPrio.ReqLevel);
-                        var statMul = GetStatMul(realStatId.Id);
 
                         if (statPrio.StatMode == StatMode.Exactly)
                         {
-                            var score = CalcScore(MAX_STAT_VALUE, statIdx, NormalizedStatPrios.Count, statMul);
+                            // The requirement gate pins this stat to ReqLevel; score it at that value.
+                            var score = ScoreStatValue(origStatId, statPrio.ReqLevel, prioPos);
 
                             if (x == statPrio.ReqLevel)
                             {
@@ -138,34 +153,39 @@ namespace BPSR_ZDPS.Managers
 
                                 var pct = statPrio.ReqLevel > 0 ? Math.Min(x, statPrio.ReqLevel) * 100 / statPrio.ReqLevel : 100;
                                 StatProgressLookup[idx] = (ushort)pct;
-
-                                Debug.WriteLine($"Set idx: {idx} to {score}, stat: {Config.StatPriorities[statIdx].Id}");
                             }
                             else
                             {
-                                var progress = x / (double)reqLevel;
+                                var progress = reqLevel > 0 ? x / (double)reqLevel : 0;
                                 StatScoreLookup[idx] = (int)(score * progress);
                             }
                         }
                         else
                         {
-                            var score = CalcScore(x, statIdx, NormalizedStatPrios.Count, statMul);
+                            var score = ScoreStatValue(origStatId, x, prioPos);
 
                             if (x >= reqLevel)
                             {
                                 StatScoreLookup[idx] = score;
                                 RequirementMetLookup[idx] = 1;
-                                Debug.WriteLine($"Set idx: {idx} to {score} (base value: {x}), stat: {Config.StatPriorities[statIdx].Id}");
                             }
                             else
                             {
-                                var progress = x / (double)reqLevel;
+                                var progress = reqLevel > 0 ? x / (double)reqLevel : 0;
                                 StatScoreLookup[idx] = (int)(score * progress);
                             }
 
                             var pct = statPrio.ReqLevel > 0 ? Math.Min(x, statPrio.ReqLevel) * 100 / statPrio.ReqLevel : 100;
                             StatProgressLookup[idx] = (ushort)pct;
                         }
+                    }
+                    else if (CombatMode)
+                    {
+                        // Combat power counts every stat regardless of ValueAllStats
+                        // (mirrors CalcCombosCombatScore / the GPU CombatPower branch).
+                        StatScoreLookup[idx] = CalcCombatStatScore(origStatId, x);
+                        RequirementMetLookup[idx] = 0;
+                        StatProgressLookup[idx] = 0;
                     }
                     else if (Config.ValueAllStats)
                     {
@@ -179,19 +199,62 @@ namespace BPSR_ZDPS.Managers
             }
         }
 
+        /// <summary>Scores one priority stat's total under the active ScoreMode.</summary>
+        private int ScoreStatValue(int origStatId, int statValue, int prioPos)
+        {
+            if (CombatMode)
+            {
+                return CalcCombatStatScore(origStatId, statValue);
+            }
+
+            return CalcScore(statValue, prioPos, Config.StatPriorities.Count, GetStatMul(origStatId));
+        }
+
+        /// <summary>Per-stat FightValue at the enhancement tier reached by <paramref name="statValue"/>.</summary>
+        private int CalcCombatStatScore(int origStatId, int statValue)
+        {
+            if (origStatId <= 0 || statValue < 1)
+            {
+                return 0;
+            }
+
+            int enhanceLevel = 0;
+            foreach (var tier in EnhanceTiers)
+            {
+                if (statValue >= tier)
+                {
+                    enhanceLevel = tier;
+                }
+                else
+                {
+                    break;
+                }
+            }
+
+            return ModuleSolver.StatCombatScores.TryGetValue($"{origStatId}_{enhanceLevel}", out var v) ? v : 0;
+        }
+
         public static float GetOrderBoost(float strength, int itemPos, int numItems)
         {
-            // Legacy support - simplified
-            return 1f;
+            // Non-linear falloff: the top priority (pos 0) is worth ~numItems,
+            // dropping as 1/(pos+1)^strength down the list, never below 1.
+            var weight = 1.0 / Math.Pow(itemPos + 1, strength);
+            var boost = numItems * weight;
+
+            return (float)Math.Max(1, boost);
         }
 
         protected int CalcScore(int statValue, int statIdx, int numStats, float statMul)
         {
-            // Simplified scoring logic
+            // Restored upstream formula: (breakpoint level x link bonus) weighted by
+            // legendary multiplier and priority-order boost, with raw points above the
+            // snapped breakpoint ("overcap") added unweighted.
             var breakPointBonus = GetLinkLevelBoost(statValue);
-            float stat = Math.Min(statValue, MAX_STAT_VALUE);
-            int score = (int)((stat * statMul) * breakPointBonus);
-            return score;
+            var orderBoost = statIdx >= 0 ? GetOrderBoost(Config.OrderBoostStrength, statIdx, numStats) : 1f;
+            var bpLevel = SnapToBreakPointLevel(statValue);
+            var leftOverPoints = statValue - bpLevel;
+
+            return (int)((bpLevel * breakPointBonus) * statMul * orderBoost + leftOverPoints);
         }
 
         protected void ScoreBeamNode(ref BeamNode beamNode)
@@ -200,9 +263,11 @@ namespace BPSR_ZDPS.Managers
             beamNode.RequirementsMet = 0;
             beamNode.RequirementProgress = 0;
 
+            int totalLinks = 0;
             for (int statIdx = 0; statIdx < Vector<byte>.Count; statIdx++)
             {
                 //var statIdx = StatIndexes[i];
+                totalLinks += beamNode.Totals[statIdx];
                 var totalVal = Math.Min((byte)MAX_STAT_VALUE_TOTAL, beamNode.Totals[statIdx]);
                 var lookupIdx = statIdx * (MAX_STAT_VALUE_TOTAL + 1) + totalVal;
                 var statScore = StatScoreLookup[lookupIdx];
@@ -210,19 +275,38 @@ namespace BPSR_ZDPS.Managers
                 beamNode.RequirementsMet += RequirementMetLookup[lookupIdx];
                 beamNode.RequirementProgress += StatProgressLookup[lookupIdx];
             }
+
+            if (CombatMode)
+            {
+                // Global enhancement bonus from the total link count (mirrors CalcCombosCombatScore).
+                beamNode.Score += LinkTotalFightLookup[Math.Min(totalLinks, MaxLinkTotal)];
+            }
+        }
+
+        private void BuildLinkTotalFightLookup()
+        {
+            MaxLinkTotal = Math.Max(1, Config.NumModules * 20);
+            LinkTotalFightLookup = new int[MaxLinkTotal + 1];
+            for (int t = 0; t <= MaxLinkTotal; t++)
+            {
+                LinkTotalFightLookup[t] = HelperMethods.DataTables.ModLinkEffects.Data.TryGetValue(t + 1, out var entry)
+                    ? entry?.FightValue ?? 0
+                    : 0;
+            }
         }
 
         protected ModComboResult BeamToResult(BeamNode beam)
         {
             var result = new ModComboResult();
+            var vals = new int[ModuleSet.MaxModules];
             unsafe
             {
-                result.ModuleSet.Mod1 = beam.CurrentSet.ModArr[0];
-                result.ModuleSet.Mod2 = beam.CurrentSet.ModArr[1];
-                result.ModuleSet.Mod3 = beam.CurrentSet.ModArr[2];
-                result.ModuleSet.Mod4 = beam.CurrentSet.ModArr[3];
-                result.ModuleSet.Mod5 = beam.CurrentSet.ModArr[4];
+                for (int i = 0; i < ModuleSet.MaxModules; i++)
+                {
+                    vals[i] = beam.CurrentSet.ModArr[i];
+                }
             }
+            result.ModuleSet = ModuleSet.FromValues(vals);
 
             result.Score = (int)beam.Score;
             return result;
@@ -314,7 +398,7 @@ namespace BPSR_ZDPS.Managers
             {
                 var statA = Math.Min(a.Totals[statIdx], (byte)MAX_STAT_VALUE_TOTAL);
                 var statB = Math.Min(b.Totals[statIdx], (byte)MAX_STAT_VALUE_TOTAL);
-                diff += Math.Abs(statA = statB);
+                diff += Math.Abs(statA - statB);
             }
 
             return diff;

@@ -42,8 +42,12 @@ namespace BPSR_ZDPS.Managers
                 }
                 catch (Exception ex)
                 {
-                    Log.Warning(ex, "GPU solve failed; falling back to NormalV2 (CPU).");
-                    result = NormalV2(config, playerMods, sw, filtered, cancelToken);
+                    // Lightweight CPU fallback: beam search has a bounded runtime independent
+                    // of the combination count, unlike re-running the brute force on CPU.
+                    Log.Warning(ex, "GPU solve failed; falling back to lightweight CPU beam search.");
+                    var beamSearch = new ModuleOptimizerBeam(config, playerMods, sw, filtered, cancelToken);
+                    result = beamSearch.Solve();
+                    result.UsedCpuFallback = true;
                 }
             }
 

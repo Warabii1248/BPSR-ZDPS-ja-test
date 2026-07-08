@@ -32,7 +32,7 @@ namespace BPSR_ZDPS.Managers.Gpu
         public int MaxTotal;            // K * 20
 
         public uint[] ModuleStats = [];   // [N*S]
-        public int[] StatMul = [];        // [S]
+        public float[] StatMul = [];      // [S] combined weight: legendaryMul x orderBoost (0 = ignore)
         public int[] StatReq = [];        // [S]
         public int[] StatMin = [];        // [S]
         public int[] StatExact = [];      // [S]

@@ -149,22 +149,32 @@ namespace BPSR_ZDPS.Managers
         }
 
         private void BuildStatConfig(SolverConfig config, Dictionary<int, int> possibleStats, int s,
-            out int[] mul, out int[] req, out int[] min, out int[] exact)
+            out float[] mul, out int[] req, out int[] min, out int[] exact)
         {
-            mul = new int[s];
+            mul = new float[s];
             req = new int[s];
             min = new int[s];
             exact = new int[s];
 
+            int prioCount = config.StatPriorities.Count;
             foreach (var (origId, normIdx) in possibleStats)
             {
-                mul[normIdx] = GetStatMultiplier(config, origId);
-                var prio = config.StatPriorities.FirstOrDefault(p => p.Id == origId);
-                if (prio != null)
+                var prioPos = config.StatPriorities.FindIndex(p => p.Id == origId);
+                if (prioPos >= 0)
                 {
+                    // Combined ZScore weight: legendary multiplier x non-linear priority-order boost
+                    // (same factors ModuleOptimizerBeam.CalcScore applies on the CPU fallback path).
+                    var legendaryMul = ModuleSolver.LegendaryStats.Contains(origId) ? config.LegendaryStatMultiplier : 1f;
+                    mul[normIdx] = legendaryMul * ModuleOptimizerBeam.GetOrderBoost(config.OrderBoostStrength, prioPos, prioCount);
+
+                    var prio = config.StatPriorities[prioPos];
                     req[normIdx] = prio.ReqLevel;
                     min[normIdx] = prio.MinLevel;
                     exact[normIdx] = prio.StatMode == StatMode.Exactly ? 1 : 0;
+                }
+                else
+                {
+                    mul[normIdx] = config.ValueAllStats ? 0.95f : 0f;
                 }
             }
         }

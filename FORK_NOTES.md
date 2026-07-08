@@ -57,9 +57,11 @@ upstream がこれらを触ると衝突します。**衝突したら基本「両
 | ファイル | 改変内容 | 衝突時の方針 |
 |---|---|---|
 | `BPSR-ZDPS/Windows/ModuleSolver.cs` | `SolverModes.Gpu`／`ScoreMode` enum 追加、`ModuleSet` を最大10対応（`Mod1..Mod10`/`FromValues`）、設定UIに演算バックエンド・スコアモード行を追加、スライダーのホバー塗りつぶし修正、UI文字列の `GetLocalized` 化 | 最も衝突しやすい。**追加した行は残し**、大本の構造変更に合わせて配置し直す。文字列は `GetLocalized("Module_*")` を維持 |
-| `BPSR-ZDPS/Managers/ModuleOptimizer.cs` | `Solve()` に `Gpu` 分岐＋CPUフォールバック、`FiveModulesLoop` の合算バグ修正、ループ末尾の `-1` ガード | Gpu 分岐は薄いフック。大本の `Solve` に合わせて再配置。バグ修正は upstream へPR提案推奨 |
+| `BPSR-ZDPS/Managers/ModuleOptimizer.cs` | `Solve()` に `Gpu` 分岐＋CPU軽量フォールバック（ビームサーチ・`UsedCpuFallback` フラグ）、`FiveModulesLoop` の合算バグ修正、ループ末尾の `-1` ガード | Gpu 分岐は薄いフック。大本の `Solve` に合わせて再配置。バグ修正は upstream へPR提案推奨 |
 | `BPSR-ZDPS/Managers/ModuleOptimizer.V2.cs` | `NormalV2` の結果マッピングを最大10対応（`ModuleSet.FromValues` ループ化） | 大本のマッピング構造に追従しつつ10対応を維持 |
-| `BPSR-ZDPS/DataTypes/Modules/SolverConfig.cs` | `ScoreMode ScoreMode` / `bool UseGpu` フィールド追加 | フィールド追加のみ。ほぼ自動マージ |
+| `BPSR-ZDPS/Managers/ModuleOptimizer/ModuleSolver.cs` (base) | `GetStatMul` にレジェンダリ倍率（`Config.LegendaryStatMultiplier`）、`PossibleStats` 逆引き保持、`ModuleSetIndices`/`ResloveResults` を最大10対応 | 大本のビーム系改修に合わせて再適用 |
+| `BPSR-ZDPS/Managers/ModuleOptimizer/ModuleOptimizerBeam.cs` | 原作スコア式（順位ブースト・レジェ倍率・オーバーキャップ余剰点）復活、`ScoreMode.CombatPower` 対応（LinkTotalFight 全体項）、`StatDifference` の `=`→`-` バグ修正 | GPU と同一スコア式を維持することが最重要。upstream の式変更時は GPU/HLSL と突合 |
+| `BPSR-ZDPS/DataTypes/Modules/SolverConfig.cs` | `ScoreMode` / `OrderBoostStrength` / `LegendaryStatMultiplier` フィールド追加（GPU 常時優先のため `UseGpu` トグルは無し） | フィールド追加のみ。ほぼ自動マージ |
 | `BPSR-ZDPS/BPSR-ZDPS.csproj` | `ModuleSolver.hlsl` の EmbeddedResource、`AppStrings.ext.*.json` の CopyToOutputDirectory | 行追加のみ。衝突したら追加行を残す |
 | `BPSR-ZDPS/AppState.cs` | `LoadAppStringsTable()` を ext オーバーレイ対応に変更（`MergeAppStringsFile` ヘルパ追加） | 大本がローダーを変えたら、ext.en/ext.ja の読み込み順（base→ext→lang→ext.lang）を再現 |
 | `BPSR-ZDPS/Data/AppStrings.en.json` | **現状はフォーク追加キーをすべて除去済み**（`Module_*` は ext.en.json へ移動） | 理想は「翻訳追加で en.json を編集しない」運用。大本の追加キーをそのまま受け入れるだけにする |

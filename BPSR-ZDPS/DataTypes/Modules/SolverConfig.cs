@@ -15,8 +15,10 @@ namespace BPSR_ZDPS.DataTypes.Modules
 
         // Which score the optimizer maximizes/ranks by.
         public ScoreMode ScoreMode = ScoreMode.ZScore;
-        // Prefer the GPU (DirectCompute) backend; falls back to CPU automatically when unavailable.
-        public bool UseGpu = true;
+        // Non-linear priority-order boost strength: weight = numPrios / (pos+1)^strength.
+        public float OrderBoostStrength = 1f;
+        // Score multiplier applied to legendary stats (ModuleSolver.LegendaryStats).
+        public float LegendaryStatMultiplier = 2f;
 
         public string SaveToString(bool asBase64 = false)
         {
@@ -103,7 +105,8 @@ namespace BPSR_ZDPS.DataTypes.Modules
                 ValueAllStats = ValueAllStats,
                 NumModules = NumModules,
                 ScoreMode = ScoreMode,
-                UseGpu = UseGpu
+                OrderBoostStrength = OrderBoostStrength,
+                LegendaryStatMultiplier = LegendaryStatMultiplier
             };
 
             return copy;

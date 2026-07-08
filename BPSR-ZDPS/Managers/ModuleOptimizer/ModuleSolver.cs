@@ -17,6 +17,7 @@ namespace BPSR_ZDPS.Managers.Modules
         protected Stopwatch StopWatch;
         protected CancellationToken CancellationToken;
         protected List<StatPrio> NormalizedStatPrios;
+        protected Dictionary<int, int> PossibleStats = new(); // original stat id -> normalized index
 
         public ModuleOptimizerBase(SolverConfig config, PlayerModDataSave playerMods, Stopwatch sw, List<long> filtered, CancellationToken cancelToken)
         {
@@ -34,8 +35,8 @@ namespace BPSR_ZDPS.Managers.Modules
             Log.Information("NumFilteredMods: {NumFiltered}, LimitedAndFiltered: {limitedAndFiltered}", Filtered.Count, limitedAndFiltered.Count);
             var modStatVecs = ModulesToVectors(PlayerModInv, Filtered);
 
-            var possibleStats = NormalizeStatsLookup(PlayerModInv, Filtered);
-            NormalizedStatPrios = NormalizeStats(Config, possibleStats);
+            PossibleStats = NormalizeStatsLookup(PlayerModInv, Filtered);
+            NormalizedStatPrios = NormalizeStats(Config, PossibleStats);
 
             if (!StatsSanityCheck(modStatVecs, NormalizedStatPrios.ToArray()))
             {
@@ -378,14 +379,8 @@ namespace BPSR_ZDPS.Managers.Modules
 
                 modSet.Stats = OrderPowerCoresByPriorities(coreStats.Values.ToArray(), Config.StatPriorities);
 
-                var reslovedModSet = new ModuleSet()
-                {
-                    Mod1 = mods[0] != -1 ? (int)Filtered[mods[0]] : -1,
-                    Mod2 = mods[1] != -1 ? (int)Filtered[mods[1]] : -1,
-                    Mod3 = mods[2] != -1 ? (int)Filtered[mods[2]] : -1,
-                    Mod4 = mods[3] != -1 ? (int)Filtered[mods[3]] : -1,
-                    Mod5 = mods[4] != -1 ? (int)Filtered[mods[4]] : -1
-                };
+                var reslovedModSet = ModuleSet.FromValues(
+                    mods.Select(m => m != -1 ? (int)Filtered[m] : -1).ToList());
 
                 modSet.CombatScore = CalcCombosCombatScore(PlayerModInv, reslovedModSet);
 
@@ -441,7 +436,7 @@ namespace BPSR_ZDPS.Managers.Modules
         {
             if (statId > 0)
             {
-                return 1f;
+                return ModuleSolver.LegendaryStats.Contains(statId) ? Config.LegendaryStatMultiplier : 1f;
             }
             else
             {
@@ -456,14 +451,14 @@ namespace BPSR_ZDPS.Managers.Modules
             {
                 unsafe
                 {
-                    for (int i = 0; i < 5; i++)
+                    for (int i = 0; i < ModuleSet.MaxModules; i++)
                     {
                         ModArr[i] = -1;
                     }
                 }
             }
 
-            public fixed short ModArr[5];
+            public fixed short ModArr[ModuleSet.MaxModules];
 
             public short Mod1 { get { unsafe { return ModArr[0]; } } set { unsafe { ModArr[0] = value; } } }
             public short Mod2 { get { unsafe { return ModArr[1]; } } set { unsafe { ModArr[1] = value; } } }
@@ -473,10 +468,10 @@ namespace BPSR_ZDPS.Managers.Modules
 
             unsafe bool Equals(ModuleSetIndices other)
             {
-                Span<short> a = stackalloc short[5];
-                Span<short> b = stackalloc short[5];
+                Span<short> a = stackalloc short[ModuleSet.MaxModules];
+                Span<short> b = stackalloc short[ModuleSet.MaxModules];
 
-                for (int i = 0; i < 5; i++)
+                for (int i = 0; i < ModuleSet.MaxModules; i++)
                 {
                     a[i] = ModArr[i];
                     b[i] = other.ModArr[i];
@@ -495,9 +490,9 @@ namespace BPSR_ZDPS.Managers.Modules
 
             public override int GetHashCode()
             {
-                Span<short> values = stackalloc short[5];
+                Span<short> values = stackalloc short[ModuleSet.MaxModules];
 
-                for (int i = 0; i < 5; i++)
+                for (int i = 0; i < ModuleSet.MaxModules; i++)
                     values[i] = ModArr[i];
 
                 values.Sort();

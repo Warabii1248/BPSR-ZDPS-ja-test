@@ -2,8 +2,9 @@
 // ModuleSolver.hlsl  -  DirectCompute (Shader Model 5.0) module-combo solver
 // ---------------------------------------------------------------------------
 // One thread evaluates one K-module combination (K = 1..10), scoring it with
-// either the priority-weighted "ZScore" (mirrors InnerStatsWeightCalcs) or the
-// in-game "combat power" (mirrors CalcCombosCombatScore).
+// either the heuristic "ZScore" (mirrors ModuleOptimizerBeam.CalcScore: breakpoint
+// snap x link bonus x legendary/order weights + overcap points) or the in-game
+// "combat power" (mirrors CalcCombosCombatScore).
 //
 // Dispatch grid = (G, numI, 1):
 //   * groupId.y = i              -> the fixed first module index of the combo.
@@ -35,7 +36,7 @@ cbuffer Params : register(b0)
 };
 
 StructuredBuffer<uint> ModuleStats   : register(t0); // [N*S]   stat value per (module, stat)
-StructuredBuffer<int>  StatMul        : register(t1); // [S]     priority multiplier (0 = ignore)
+StructuredBuffer<float> StatMul       : register(t1); // [S]     ZScore weight: legendaryMul x orderBoost (0 = ignore)
 StructuredBuffer<int>  StatReq        : register(t2); // [S]     required link level
 StructuredBuffer<int>  StatMin        : register(t3); // [S]     minimum link level (usually 0)
 StructuredBuffer<int>  StatExact      : register(t4); // [S]     1 if Exactly mode
@@ -69,6 +70,18 @@ int LinkTier(int v)
     if (v >= 12) return 3;
     if (v >= 8)  return 2;
     if (v >= 4)  return 1;
+    return 0;
+}
+
+int SnapBp(int v)
+{
+    // snaps to the highest reached breakpoint level [1,4,8,12,16,20]; below 1 -> 0
+    if (v >= 20) return 20;
+    if (v >= 16) return 16;
+    if (v >= 12) return 12;
+    if (v >= 8)  return 8;
+    if (v >= 4)  return 4;
+    if (v >= 1)  return 1;
     return 0;
 }
 
@@ -187,14 +200,18 @@ void CSMain(uint3 groupId : SV_GroupID, uint3 gtid : SV_GroupThreadID)
 
         if (ScoreModeV == 0)
         {
-            // ZScore (priority weighted), mirrors InnerStatsWeightCalcs
+            // ZScore, mirrors ModuleOptimizerBeam.CalcScore:
+            // (breakpoint level x link bonus) x weight + unweighted overcap points,
+            // where weight = legendaryMul x priority orderBoost (pre-combined in StatMul).
             for (uint s = 0; s < NumStats; s++)
             {
-                int mined = min(totals[s], 20);
-                int passed = (mined > StatMin[s]) ? mined : 0;
-                int mul = StatMul[s];
-                score += passed * mul;
-                score += LinkBonus[LinkTier(passed)] * mul;
+                float w = StatMul[s];
+                if (w > 0)
+                {
+                    int tv = min(totals[s], 50);
+                    int bp = SnapBp(tv);
+                    score += (int)((bp * LinkBonus[LinkTier(tv)]) * w + (tv - bp));
+                }
             }
         }
         else

@@ -17,6 +17,7 @@ namespace BPSR_ZDPS
         private static bool IsOpen = false;
 
         public static FrozenDictionary<string, int> StatCombatScores;
+        public static int[] LegendaryStats = [2104, 2105, 2204, 2205, 2404, 2405, 2406, 2304];
         private static PlayerModDataSave PlayerModData = new PlayerModDataSave();
         private static PlayerModDataSave ResultsPlayerModData = new PlayerModDataSave();
         private static FrozenDictionary<int, ModStatInfo> ModStatInfos;
@@ -40,6 +41,7 @@ namespace BPSR_ZDPS
         private static string CurrentPresetString = "";
         static int RunOnceDelayed = 0;
         private static bool ShouldTrackOpenState;
+        private static bool LastSolveUsedCpuFallback;
 
         public static List<long> FilteredModules = [];
 
@@ -201,6 +203,9 @@ namespace BPSR_ZDPS
                                         solverConfig.QualitiesV2 = SolverConfig.QualitiesV2;
                                         solverConfig.NumModules = SolverConfig.NumModules;
                                         solverConfig.ValueAllStats = SolverConfig.ValueAllStats;
+                                        solverConfig.ScoreMode = SolverConfig.ScoreMode;
+                                        solverConfig.OrderBoostStrength = SolverConfig.OrderBoostStrength;
+                                        solverConfig.LegendaryStatMultiplier = SolverConfig.LegendaryStatMultiplier;
                                         SolverConfig = solverConfig;
                                     }
                                 }
@@ -244,24 +249,22 @@ namespace BPSR_ZDPS
 
                             AddSettingRow(AppStrings.GetLocalized("Module_Settings_ComputeBackend"), () =>
                             {
-                                bool useGpu = SolverConfig.UseGpu;
-                                if (ImGui.Checkbox(AppStrings.GetLocalized("Module_Settings_UseGpu") + "##UseGpu", ref useGpu))
-                                {
-                                    SolverConfig.UseGpu = useGpu;
-                                }
-
+                                // GPU is always preferred; when it is unavailable the solver falls back
+                                // to the lightweight CPU beam search automatically (resets on restart).
                                 var adapter = Managers.ModuleOptimizer.GpuAdapterName;
                                 if (Managers.ModuleOptimizer.GpuUnavailable)
                                 {
-                                    ImGui.SameLine();
                                     ImGui.PushStyleColor(ImGuiCol.Text, Colors.Red_Transparent);
                                     ImGui.TextUnformatted(AppStrings.GetLocalized("Module_Settings_GpuUnavailable"));
                                     ImGui.PopStyleColor();
                                 }
                                 else if (!string.IsNullOrEmpty(adapter))
                                 {
-                                    ImGui.SameLine();
-                                    ImGui.TextDisabled($"({adapter})");
+                                    ImGui.TextUnformatted($"GPU ({adapter})");
+                                }
+                                else
+                                {
+                                    ImGui.TextDisabled(AppStrings.GetLocalized("Module_Settings_GpuPending"));
                                 }
                             });
 
@@ -275,6 +278,33 @@ namespace BPSR_ZDPS
                                     SolverConfig.ScoreMode = (ScoreMode)Math.Clamp(selected, 0, 1);
                                 }
                             });
+
+                            // Heuristic weights only affect the ZScore mode.
+                            ImGui.BeginDisabled(SolverConfig.ScoreMode == ScoreMode.CombatPower);
+
+                            AddSettingRow(AppStrings.GetLocalized("Module_Settings_OrderBoostStrength"), () =>
+                            {
+                                ImGui.SetNextItemWidth(300);
+                                float strength = SolverConfig.OrderBoostStrength;
+                                if (ImGui.SliderFloat("##OrderBoostStrength", ref strength, 0f, 3f, "%.2f"))
+                                {
+                                    SolverConfig.OrderBoostStrength = strength;
+                                }
+                                ImGui.SetItemTooltip(AppStrings.GetLocalized("Module_Settings_OrderBoostStrength_Tooltip"));
+                            });
+
+                            AddSettingRow(AppStrings.GetLocalized("Module_Settings_LegendaryMul"), () =>
+                            {
+                                ImGui.SetNextItemWidth(300);
+                                float mul = SolverConfig.LegendaryStatMultiplier;
+                                if (ImGui.SliderFloat("##LegendaryMul", ref mul, 1f, 4f, "%.2f"))
+                                {
+                                    SolverConfig.LegendaryStatMultiplier = mul;
+                                }
+                                ImGui.SetItemTooltip(AppStrings.GetLocalized("Module_Settings_LegendaryMul_Tooltip"));
+                            });
+
+                            ImGui.EndDisabled();
 
                             ImGui.EndTable();
                         }
@@ -524,6 +554,11 @@ namespace BPSR_ZDPS
 
             ImGui.BeginChild("RightSection", new Vector2(windowSize.X - leftWidth - 5, contentRegion.Y - 55), ImGuiChildFlags.Borders);
             ImGui.Spacing();
+
+            if (LastSolveUsedCpuFallback && BestModResults != null && !IsCalculating)
+            {
+                ImGui.TextDisabled(AppStrings.GetLocalized("Module_Result_CpuFallback"));
+            }
 
             if (BestModResults?.Count > 0)
             {
@@ -1130,11 +1165,13 @@ namespace BPSR_ZDPS
             var modWindowSettings = Settings.Instance.WindowSettings.ModuleWindow;
             var solver = new ModuleOptimizer();
             ResultsPlayerModData = invToUse ?? PlayerModData;
-            var mode = SolverConfig.UseGpu ? SolverModes.Gpu : SolverModes.NormalV2;
-            var results = solver.Solve(SolverConfig, ResultsPlayerModData, mode, ModuleCalcCancelTokenSource.Token);
+            // Always prefer the GPU; Solve falls back to the lightweight CPU beam search
+            // automatically when the GPU is unavailable (resets on app restart).
+            var results = solver.Solve(SolverConfig, ResultsPlayerModData, SolverModes.Gpu, ModuleCalcCancelTokenSource.Token);
 
             FilteredModules = results.FilteredModules;
             BestModResults = results.BestModResults;
+            LastSolveUsedCpuFallback = results.UsedCpuFallback;
 
             IsCalculating = false;
         }
@@ -1306,6 +1343,9 @@ namespace BPSR_ZDPS
     {
         public List<ModComboResult> BestModResults = [];
         public List<long> FilteredModules = [];
+        // True when the GPU was unavailable and the lightweight CPU beam search
+        // produced these (approximate) results instead.
+        public bool UsedCpuFallback;
     }
 
     public enum StatMode
