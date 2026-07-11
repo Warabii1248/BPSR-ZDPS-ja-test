@@ -32,7 +32,7 @@
 // by the CPU, so rank arithmetic inside a slice cannot overflow uint32.
 // ===========================================================================
 
-#define THREADS 64
+#define THREADS 256
 #define TOPK 10
 #define MAX_STATS 32
 #define MAX_K 10
@@ -44,7 +44,7 @@ cbuffer Params : register(b0)
     uint K;               // combo size (1..10)
     uint NumStats;        // S (distinct normalized stats, <= MAX_STATS); buffers padded to ceil4(S)
     uint ScoreModeV;      // 0 = ZScore, 1 = CombatPower
-    uint HasExact;        // 1 if any priority uses StatMode.Exactly
+    uint HasExact;        // unused (Exactly is enforced per stat via StatExact); kept for cbuffer layout
     uint MaxTotal;        // K*20, last valid index into LinkTotalFight
     uint GroupsX;         // G (grid.x dimension)
     uint IBase;           // first module row covered by this dispatch (added to groupId.y)
@@ -146,7 +146,6 @@ void AddModuleStats(inout int prefix[MAX_STATS], uint modIdx, uint sPacked)
 // (mul 0, req 0, combat 0), so looping the padded range needs no bounds checks.
 int ScoreCombo(int prefix[MAX_STATS], uint lastMod, uint sPacked, out bool valid)
 {
-    bool anyExact = false;
     bool reqOk = true;
     int score = 0;
     int totalSum = 0;
@@ -160,9 +159,15 @@ int ScoreCombo(int prefix[MAX_STATS], uint lastMod, uint sPacked, out bool valid
             uint s = w * 4 + b;
             int tv = prefix[s] + (int)((word >> (b * 8)) & 0xFF);
 
-            if (StatExact[s] != 0 && tv == StatReq[s])
-                anyExact = true;
-            if (min(tv, 20) < StatReq[s])
+            // Exactly gates apply per stat: EVERY exact stat must hit its target.
+            // (A former any-one-matches check let a combo violate a second Exactly
+            // stat.) Raw equality on the total, same as ModuleOptimizerBeam.
+            if (StatExact[s] != 0)
+            {
+                if (tv != StatReq[s])
+                    reqOk = false;
+            }
+            else if (min(tv, 20) < StatReq[s])
                 reqOk = false;
             // Upper-bound cap: this stat's raw total must not exceed StatCap[s]
             // (a huge sentinel disables it). Cap 0 excludes the stat entirely.
@@ -202,7 +207,7 @@ int ScoreCombo(int prefix[MAX_STATS], uint lastMod, uint sPacked, out bool valid
         score += LinkTotalFight[totalSum];
     }
 
-    valid = reqOk && (HasExact == 0 || anyExact);
+    valid = reqOk;
     return score;
 }
 

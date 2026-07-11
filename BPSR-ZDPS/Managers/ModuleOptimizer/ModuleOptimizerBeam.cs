@@ -132,6 +132,11 @@ namespace BPSR_ZDPS.Managers
                 Log.Information($"Candidate order took: {sw.Elapsed}, depth: {i}");
             }
 
+            // Local-search polish: the beam prunes on intermediate rankings, so ancestors
+            // of the true optimum can be lost mid-search. Hill climbing from strong
+            // finished sets recovers most of those misses at negligible cost.
+            beam = RefineBeam(beam, mods, numModules);
+
             var meetsRequirements = beam.Where(x => x.RequirementsMet == NormalizedStatPrios.Count);
             // Threshold 1: only stat-profile duplicates collapse, so up to 10 results survive
             // (a threshold of 10 used to merge every requirement-meeting set into one entry).
@@ -141,6 +146,192 @@ namespace BPSR_ZDPS.Managers
                 .ToArray();
 
             return bestX;
+        }
+
+        /// <summary>
+        /// Post-beam local search: steepest-ascent 1-swap hill climbing from a diverse set
+        /// of finished beam nodes. Each sweep tries replacing every chosen module with every
+        /// unused candidate and applies the best improvement (by the canonical priority)
+        /// until a local optimum. Cost is ~K*N evaluations per sweep per seed - negligible
+        /// next to the beam itself - and it recovers most sets the beam pruned mid-search.
+        /// </summary>
+        private List<BeamNode> RefineBeam(List<BeamNode> beam, Vector<byte>[] mods, int numModules)
+        {
+            if (beam.Count == 0 || mods.Length <= numModules)
+                return beam;
+
+            const int TopSeeds = 128, SpreadSeeds = 64, MaxSweeps = 10;
+
+            // Seeds: the strongest nodes by canonical priority plus an even sample of the
+            // rest, so climbing starts from several basins rather than near-duplicates.
+            var byPrio = beam.OrderByDescending(CreatePriority).ToList();
+            var seeds = new List<BeamNode>(TopSeeds + SpreadSeeds);
+            seeds.AddRange(byPrio.Take(TopSeeds));
+            if (byPrio.Count > TopSeeds)
+            {
+                int step = Math.Max(1, (byPrio.Count - TopSeeds) / SpreadSeeds);
+                for (int i = TopSeeds; i < byPrio.Count; i += step)
+                    seeds.Add(byPrio[i]);
+            }
+
+            var refined = new BeamNode[seeds.Count];
+            Parallel.For(0, seeds.Count, si =>
+            {
+                refined[si] = OneSwapClimb(seeds[si], mods, numModules, MaxSweeps);
+            });
+
+            // Second phase: 2-swap on the strongest climbed nodes. Exactly/cap gates form
+            // equality ridges a single swap cannot cross (two stats must change at once
+            // while every gate stays satisfied), so module PAIRS are tried on a few seeds,
+            // re-polishing with 1-swaps after each accepted pair move.
+            const int PairSeeds = 12, PairRounds = 3;
+            var pairTop = refined.OrderByDescending(CreatePriority)
+                .Take(PairSeeds).ToArray();
+            var pairRefined = new BeamNode[pairTop.Length];
+            Parallel.For(0, pairTop.Length, ti =>
+            {
+                var node = pairTop[ti];
+                for (int round = 0; round < PairRounds && !CancellationToken.IsCancellationRequested; round++)
+                {
+                    if (!TwoSwapStep(ref node, mods, numModules))
+                        break;
+                    node = OneSwapClimb(node, mods, numModules, MaxSweeps);
+                }
+                pairRefined[ti] = node;
+            });
+
+            // Refined nodes join the pool; duplicates collapse later via DistinctBy(GetHash).
+            var merged = new List<BeamNode>(beam.Count + refined.Length + pairRefined.Length);
+            merged.AddRange(pairRefined);
+            merged.AddRange(refined);
+            merged.AddRange(beam);
+            return merged;
+        }
+
+        /// <summary>Steepest-ascent 1-swap hill climbing to a local optimum (or maxSweeps).</summary>
+        private BeamNode OneSwapClimb(BeamNode node, Vector<byte>[] mods, int numModules, int maxSweeps)
+        {
+            for (int sweep = 0; sweep < maxSweeps && !CancellationToken.IsCancellationRequested; sweep++)
+            {
+                long bestPrio = CreatePriority(node);
+                bool improved = false;
+                BeamNode bestNode = default;
+
+                for (int p = 0; p < numModules; p++)
+                {
+                    short oldIdx;
+                    unsafe { oldIdx = node.CurrentSet.ModArr[p]; }
+                    if (oldIdx < 0)
+                        continue;
+
+                    var baseTotals = Vector.Subtract(node.Totals, mods[oldIdx]);
+
+                    for (int m = 0; m < mods.Length; m++)
+                    {
+                        if (IsUsed(ref node, m, numModules))
+                            continue;
+
+                        var cand = node;
+                        unsafe { cand.CurrentSet.ModArr[p] = (short)m; }
+                        cand.Totals = Vector.Add(baseTotals, mods[m]);
+                        ScoreBeamNode(ref cand);
+
+                        long prio = CreatePriority(cand);
+                        if (prio > bestPrio)
+                        {
+                            bestPrio = prio;
+                            bestNode = cand;
+                            improved = true;
+                        }
+                    }
+                }
+
+                if (!improved)
+                    break;
+                node = bestNode;
+            }
+
+            return node;
+        }
+
+        /// <summary>
+        /// One steepest 2-swap move: replaces the best-improving PAIR of chosen modules
+        /// with a pair of unused candidates. Returns false at a 2-swap local optimum.
+        /// </summary>
+        private bool TwoSwapStep(ref BeamNode node, Vector<byte>[] mods, int numModules)
+        {
+            long bestPrio = CreatePriority(node);
+            bool improved = false;
+            BeamNode bestNode = default;
+
+            for (int p1 = 0; p1 < numModules - 1; p1++)
+            {
+                short o1;
+                unsafe { o1 = node.CurrentSet.ModArr[p1]; }
+                if (o1 < 0)
+                    continue;
+
+                for (int p2 = p1 + 1; p2 < numModules; p2++)
+                {
+                    short o2;
+                    unsafe { o2 = node.CurrentSet.ModArr[p2]; }
+                    if (o2 < 0)
+                        continue;
+
+                    var baseTotals = Vector.Subtract(Vector.Subtract(node.Totals, mods[o1]), mods[o2]);
+
+                    for (int m1 = 0; m1 < mods.Length; m1++)
+                    {
+                        if (m1 != o1 && m1 != o2 && IsUsed(ref node, m1, numModules))
+                            continue;
+
+                        var partTotals = Vector.Add(baseTotals, mods[m1]);
+
+                        for (int m2 = m1 + 1; m2 < mods.Length; m2++)
+                        {
+                            if (m2 != o1 && m2 != o2 && IsUsed(ref node, m2, numModules))
+                                continue;
+                            if ((m1 == o1 && m2 == o2) || (m1 == o2 && m2 == o1))
+                                continue; // no-op
+
+                            var cand = node;
+                            unsafe
+                            {
+                                cand.CurrentSet.ModArr[p1] = (short)m1;
+                                cand.CurrentSet.ModArr[p2] = (short)m2;
+                            }
+                            cand.Totals = Vector.Add(partTotals, mods[m2]);
+                            ScoreBeamNode(ref cand);
+
+                            long prio = CreatePriority(cand);
+                            if (prio > bestPrio)
+                            {
+                                bestPrio = prio;
+                                bestNode = cand;
+                                improved = true;
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (improved)
+                node = bestNode;
+            return improved;
+        }
+
+        /// <summary>True when module index <paramref name="m"/> is already in the node's set.</summary>
+        private static bool IsUsed(ref BeamNode node, int m, int numModules)
+        {
+            unsafe
+            {
+                for (int q = 0; q < numModules; q++)
+                {
+                    if (node.CurrentSet.ModArr[q] == m)
+                        return true;
+                }
+            }
+            return false;
         }
 
         protected void BuildStatScoreLookup(List<StatPrio> statPrios)
@@ -201,8 +392,17 @@ namespace BPSR_ZDPS.Managers
                             }
                             else
                             {
-                                var progress = reqLevel > 0 ? x / (double)reqLevel : 0;
+                                // Guide the beam toward the exact target from BOTH sides:
+                                // rising credit below it, decaying credit above it. The old
+                                // x/req multiplier kept growing past the target (rewarding
+                                // overshoot the gate then rejects) and left progress at 0
+                                // until the exact value (no gradient), both causing misses.
+                                var progress = reqLevel > 0
+                                    ? (x < reqLevel ? x / (double)reqLevel : reqLevel / (double)x)
+                                    : 0;
                                 StatScoreLookup[idx] = (int)(score * progress);
+                                // Strictly below the met lane's 100 so exact still wins.
+                                StatProgressLookup[idx] = (ushort)(progress * 99);
                             }
                         }
                         else
@@ -362,25 +562,79 @@ namespace BPSR_ZDPS.Managers
             return result;
         }
 
+        /// <summary>
+        /// Order-independent identity of the node's chosen module set. The expansion loop
+        /// builds the same set in every order (up to Depth! permutations), so beam slots
+        /// must be deduplicated on this or the effective width collapses.
+        /// </summary>
+        protected static ulong SetHash(in BeamNode node)
+        {
+            Span<short> ids = stackalloc short[ModuleSet.MaxModules];
+            int count = Math.Min((int)node.Depth, ModuleSet.MaxModules);
+            unsafe
+            {
+                for (int i = 0; i < count; i++)
+                {
+                    fixed (short* arr = node.CurrentSet.ModArr)
+                    {
+                        ids[i] = arr[i];
+                    }
+                }
+            }
+
+            // Insertion sort (tiny count) then FNV-1a.
+            for (int i = 1; i < count; i++)
+            {
+                var v = ids[i];
+                int j = i - 1;
+                while (j >= 0 && ids[j] > v)
+                {
+                    ids[j + 1] = ids[j];
+                    j--;
+                }
+                ids[j + 1] = v;
+            }
+
+            ulong hash = 14695981039346656037UL;
+            for (int i = 0; i < count; i++)
+            {
+                hash ^= (ushort)ids[i];
+                hash *= 1099511628211UL;
+            }
+
+            return hash;
+        }
+
         protected List<BeamNode> GetTopK(IEnumerable<BeamNode> candidates, int size)
         {
-            var heap = new PriorityQueue<BeamNode, double>();
+            // Min-heap on the canonical priority. Every enqueue MUST use CreatePriority:
+            // mixing raw Score and the packed key made TryPeek return an arbitrary node
+            // instead of the true worst, so good nodes were evicted (search misses).
+            // Permutation duplicates of an already-held set are skipped (identical Totals,
+            // identical priority) so every slot holds a DISTINCT set.
+            var heap = new PriorityQueue<BeamNode, long>();
+            var seen = new HashSet<ulong>(size);
 
             foreach (var candidate in candidates)
             {
-                if (heap.Count < size)
+                var prio = CreatePriority(candidate);
+                if (heap.Count >= size)
                 {
-                    heap.Enqueue(candidate, candidate.Score);
-                    continue;
+                    heap.TryPeek(out _, out var worstPrio);
+                    if (prio <= worstPrio)
+                        continue;
                 }
 
-                heap.TryPeek(out var worst, out var worstScore);
-
-                if (!IsBetter(candidate, worst))
+                if (!seen.Add(SetHash(candidate)))
                     continue;
 
-                heap.Dequeue();
-                heap.Enqueue(candidate, CreatePriority(candidate));
+                if (heap.Count >= size)
+                {
+                    var evicted = heap.Dequeue();
+                    seen.Remove(SetHash(evicted));
+                }
+
+                heap.Enqueue(candidate, prio);
             }
 
             var result = new List<BeamNode>(heap.Count);
@@ -397,21 +651,19 @@ namespace BPSR_ZDPS.Managers
 
         protected static bool IsBetter(BeamNode a, BeamNode b)
         {
-            if (a.RequirementProgress != b.RequirementProgress)
-                return a.RequirementProgress > b.RequirementProgress;
-
-            if (a.RequirementsMet != b.RequirementsMet)
-                return a.RequirementsMet > b.RequirementsMet;
-
-            return a.Score > b.Score;
+            // Single canonical ordering (same key the heaps use) so ranking and eviction
+            // can never disagree.
+            return CreatePriority(a) > CreatePriority(b);
         }
 
         protected static long CreatePriority(BeamNode x)
         {
-            // Compute in long and clamp to uint before OR-ing into the low 32 bits: high
-            // LinkLevelBonus values can push Score*1000 past int range.
-            var scoreKey = (uint)Math.Clamp((long)x.Score * 1000L, 0L, uint.MaxValue);
-            return ((long)x.RequirementsMet << 48) | ((long)x.RequirementProgress << 32) | scoreKey;
+            // Canonical beam ranking: requirement progress (finer gradient) first, then
+            // fully-met count, then score. The score is offset, not clamped at zero, so
+            // negative scores (e.g. the cap-exceeded penalty) still order among themselves.
+            // progress <= 12 prios * 100 fits 16 bits; met <= 12 fits 8 bits.
+            var scoreKey = (uint)Math.Clamp((long)x.Score + 2_000_000L, 0L, uint.MaxValue);
+            return ((long)x.RequirementProgress << 48) | ((long)x.RequirementsMet << 40) | scoreKey;
         }
 
         protected List<BeamNode> GetDistinctTopResults(IEnumerable<BeamNode> candidates, int maxResults = 10, int minStatDifference = 10)
@@ -507,7 +759,8 @@ namespace BPSR_ZDPS.Managers
         public sealed class TopK
         {
             private int Size;
-            private PriorityQueue<BeamNode, double> Heap = new();
+            private PriorityQueue<BeamNode, long> Heap = new();
+            private HashSet<ulong> Seen = new();
 
             public TopK(int size)
             {
@@ -516,19 +769,25 @@ namespace BPSR_ZDPS.Managers
 
             public void Add(BeamNode candidate)
             {
-                if (Heap.Count < Size)
+                // Same canonical priority + set-dedup as GetTopK; see the comments there.
+                var prio = CreatePriority(candidate);
+                if (Heap.Count >= Size)
                 {
-                    Heap.Enqueue(candidate, candidate.Score);
-                    return;
+                    Heap.TryPeek(out _, out var worstPrio);
+                    if (prio <= worstPrio)
+                        return;
                 }
 
-                Heap.TryPeek(out var worst, out var worstScore);
-
-                if (!IsBetter(candidate, worst))
+                if (!Seen.Add(SetHash(candidate)))
                     return;
 
-                Heap.Dequeue();
-                Heap.Enqueue(candidate, CreatePriority(candidate));
+                if (Heap.Count >= Size)
+                {
+                    var evicted = Heap.Dequeue();
+                    Seen.Remove(SetHash(evicted));
+                }
+
+                Heap.Enqueue(candidate, prio);
             }
 
             public List<BeamNode> ToList()

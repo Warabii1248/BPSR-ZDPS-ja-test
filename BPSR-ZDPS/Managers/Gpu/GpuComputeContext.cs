@@ -3,6 +3,7 @@ using Silk.NET.Core.Native;
 using Silk.NET.Direct3D.Compilers;
 using Silk.NET.Direct3D11;
 using Silk.NET.DXGI;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Text;
 
@@ -51,9 +52,13 @@ namespace BPSR_ZDPS.Managers.Gpu
     /// </summary>
     public sealed unsafe class GpuComputeContext : IDisposable
     {
-        private const int THREADS = 64;    // must match ModuleSolver.hlsl
+        // THREADS x GROUPS_X = threads per dispatch. The old 64x256 = 16k threads left a
+        // modern GPU ~90% idle (a 5080 keeps ~170k threads in flight); 256x1024 = 262k
+        // threads measured ~2.5x faster end-to-end on a 70G-combo solve. Output scales
+        // linearly with GROUPS_X (numI * GROUPS_X * TOPK entries; ~47MB at N=386).
+        private const int THREADS = 256;    // must match ModuleSolver.hlsl
         private const int TOPK = 10;        // must match ModuleSolver.hlsl
-        private const uint GROUPS_X = 256;  // grid.x; each (i,group) covers a contiguous rank chunk
+        private const uint GROUPS_X = 1024; // grid.x; each (i,group) covers a contiguous rank chunk
 
         // Max sub-combos evaluated per dispatch. Each dispatch is flushed as its own GPU
         // packet, keeping it far below the ~2s Windows TDR limit even when the game is
@@ -304,26 +309,74 @@ namespace BPSR_ZDPS.Managers.Gpu
                 totalCombos += input.Binom[(input.NumModules - row - 1) * cols + (k - 1)];
             }
 
+            // Adaptive slice budget: start at the conservative fixed size, then measure
+            // real throughput at sync points and grow each packet toward TARGET_SLICE_SEC
+            // of GPU time. Millions of tiny fixed slices spent most wall time on submit
+            // overhead; ~30ms packets keep a ~60x margin below the ~2s TDR limit and
+            // retuning every SYNC_INTERVAL slices tracks changing GPU load (the game
+            // starting/stopping mid-solve shrinks/grows the next packets accordingly).
+            // A debug override pins the budget for tests.
+            const double TARGET_SLICE_SEC = 0.030;
+            const uint MAX_BUDGET = 256_000_000;
+            const int SYNC_INTERVAL = 16;
+            uint budget = ComboBudget;
+            bool adaptive = DebugComboBudget == 0;
+            bool tunedOnce = false;
+            int slicesSinceSync = 0;
+            double combosSinceSync = 0;
+            var syncWatch = Stopwatch.StartNew();
+
+            void AfterSlice(double sliceCombos, ref double doneAcc)
+            {
+                doneAcc += sliceCombos;
+                progress?.Invoke((float)(doneAcc / totalCombos));
+
+                if (!adaptive)
+                {
+                    return;
+                }
+
+                slicesSinceSync++;
+                combosSinceSync += sliceCombos;
+                if (!tunedOnce || slicesSinceSync >= SYNC_INTERVAL)
+                {
+                    WaitForGpu();
+                    double sec = syncWatch.Elapsed.TotalSeconds;
+                    if (sec > 0.0005)
+                    {
+                        double throughput = combosSinceSync / sec; // combos per second
+                        budget = (uint)Math.Clamp(throughput * TARGET_SLICE_SEC, ComboBudget, MAX_BUDGET);
+                    }
+
+                    tunedOnce = true;
+                    slicesSinceSync = 0;
+                    combosSinceSync = 0;
+                    syncWatch.Restart();
+                }
+            }
+
             double doneCombos = 0;
             int i = 0;
             while (i < numI && !cancelToken.IsCancellationRequested)
             {
                 // C(N-i-1, K-1): sub-combos rooted at first-module row i.
                 uint subCount = input.Binom[(input.NumModules - i - 1) * cols + (k - 1)];
-                if (subCount > ComboBudget)
+                if (subCount > budget)
                 {
                     // One oversized row: slice its rank range.
                     cb.IBase = (uint)i;
-                    for (ulong start = 0; start < subCount && !cancelToken.IsCancellationRequested; start += ComboBudget)
+                    ulong start = 0;
+                    while (start < subCount && !cancelToken.IsCancellationRequested)
                     {
                         cb.RankStart = (uint)start;
-                        cb.RankEnd = (uint)Math.Min(subCount, start + ComboBudget);
+                        cb.RankEnd = (uint)Math.Min(subCount, start + budget);
                         UpdateConstantBuffer(cbBuf, ref cb);
                         _context.Dispatch(GROUPS_X, 1, 1);
                         _context.Flush();
 
-                        doneCombos += cb.RankEnd - cb.RankStart;
-                        progress?.Invoke((float)(doneCombos / totalCombos));
+                        double done = cb.RankEnd - cb.RankStart;
+                        start = cb.RankEnd;
+                        AfterSlice(done, ref doneCombos);
                     }
                     i++;
                 }
@@ -335,7 +388,7 @@ namespace BPSR_ZDPS.Managers.Gpu
                     while (i + rows < numI && rows < 65535)
                     {
                         uint next = input.Binom[(input.NumModules - (i + rows) - 1) * cols + (k - 1)];
-                        if (total + next > ComboBudget)
+                        if (total + next > budget)
                         {
                             break;
                         }
@@ -351,10 +404,31 @@ namespace BPSR_ZDPS.Managers.Gpu
                     _context.Flush();
                     i += rows;
 
-                    doneCombos += total;
-                    progress?.Invoke((float)(doneCombos / totalCombos));
+                    AfterSlice(total, ref doneCombos);
                 }
             }
+        }
+
+        /// <summary>
+        /// Blocks until every command submitted so far has finished executing on the GPU
+        /// (event query + poll). Used as the adaptive-budget measurement sync point.
+        /// </summary>
+        private void WaitForGpu()
+        {
+            var desc = new QueryDesc { Query = Query.Event, MiscFlags = 0 };
+            ID3D11Query* query = null;
+            SilkMarshal.ThrowHResult(_device.CreateQuery(&desc, &query));
+
+            _context.End((ID3D11Asynchronous*)query);
+            _context.Flush();
+
+            uint data = 0;
+            while (_context.GetData((ID3D11Asynchronous*)query, &data, (uint)sizeof(uint), 0) != 0)
+            {
+                Thread.SpinWait(256);
+            }
+
+            query->Release();
         }
 
         /// <summary>

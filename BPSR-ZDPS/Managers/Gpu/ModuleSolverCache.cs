@@ -407,8 +407,6 @@ namespace BPSR_ZDPS.Managers
             var linkTotalFight = BuildLinkTotalFight(maxTotal);
             bool combat = config.ScoreMode == ScoreMode.CombatPower;
             bool original = config.ScoringModel == ScoringModel.Original;
-            // Cap-mode priorities (negative ReqLevel) ignore A/E, so they never count as Exactly.
-            bool hasExact = config.StatPriorities.Any(p => !p.HasCap && p.StatMode == StatMode.Exactly);
 
             var pool = cache.Pool;
             var scores = new int[pool.Length];
@@ -427,7 +425,7 @@ namespace BPSR_ZDPS.Managers
                 Span<int> totals = stackalloc int[MaxCacheStats];
                 SumTotals(cache.StatMatrix, s, indices, totals);
 
-                if (!GatesPass(totals, s, req, exact, cap, hasExact))
+                if (!GatesPass(totals, s, req, exact, cap))
                 {
                     scores[p] = int.MinValue;
                     return;
@@ -599,17 +597,22 @@ namespace BPSR_ZDPS.Managers
             }
         }
 
-        private static bool GatesPass(Span<int> totals, int s, int[] req, int[] exact, int[] cap, bool hasExact)
+        private static bool GatesPass(Span<int> totals, int s, int[] req, int[] exact, int[] cap)
         {
-            bool anyExact = false;
             for (int st = 0; st < s; st++)
             {
                 int tv = totals[st];
-                if (exact[st] != 0 && tv == req[st])
+                // Exactly gates apply per stat: EVERY exact stat must hit its target.
+                // (A former any-one-matches check let a combo violate a second Exactly
+                // stat.) Raw equality on the total, same as the shader and the beam.
+                if (exact[st] != 0)
                 {
-                    anyExact = true;
+                    if (tv != req[st])
+                    {
+                        return false;
+                    }
                 }
-                if (Math.Min(tv, 20) < req[st])
+                else if (Math.Min(tv, 20) < req[st])
                 {
                     return false;
                 }
@@ -620,7 +623,7 @@ namespace BPSR_ZDPS.Managers
                 }
             }
 
-            return !hasExact || anyExact;
+            return true;
         }
 
         private static int CpuScoreCombo(Span<int> totals, int s, float[] mul, int[] req,
