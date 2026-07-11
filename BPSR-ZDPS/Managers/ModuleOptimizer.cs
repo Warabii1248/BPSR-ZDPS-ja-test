@@ -9,12 +9,12 @@ namespace BPSR_ZDPS.Managers
 {
     public partial class ModuleOptimizer
     {
-        public SolverResult Solve(SolverConfig config, PlayerModDataSave playerMods, SolverModes mode, CancellationToken cancelToken)
+        public SolverResult Solve(SolverConfig config, PlayerModDataSave playerMods, SolverModes mode, CancellationToken cancelToken, Action<float>? progress = null)
         {
             var sw = Stopwatch.StartNew();
             var filtered = FilterModulesWithStats(config, playerMods);
 
-            SolverResult result = new SolverResult(); 
+            SolverResult result = new SolverResult();
             if (mode == SolverModes.Legacy)
             {
                 result = DebugSlow(config, playerMods, sw, filtered);
@@ -29,23 +29,34 @@ namespace BPSR_ZDPS.Managers
             }
             else if (mode == SolverModes.NormalV2)
             {
-                //result = NormalV2(config, playerMods, sw, filtered, cancelToken);
+                // Exact search-space reduction (dedup + dominance) helps the beam too:
+                // dominated modules were only noise in its candidate expansions.
+                filtered = PrepareCandidates(config, playerMods, filtered);
 
-                var beamSearch = new ModuleOptimizerBeam(config, playerMods, sw, filtered, cancelToken);
+                var beamSearch = new ModuleOptimizerBeam(config, playerMods, sw, filtered, cancelToken)
+                {
+                    ProgressCallback = progress
+                };
                 result = beamSearch.Solve();
             }
             else if (mode == SolverModes.Gpu)
             {
+                filtered = PrepareCandidates(config, playerMods, filtered);
+
+                // No automatic fallback: a GPU failure propagates to the caller, which reports
+                // it and stops. The legacy fallback survives only behind the debug-tab flag.
                 try
                 {
-                    result = GpuSolve(config, playerMods, sw, filtered, cancelToken);
+                    result = GpuSolve(config, playerMods, sw, filtered, cancelToken, progress);
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (DebugAllowCpuFallback && ex is not OperationCanceledException)
                 {
-                    // Lightweight CPU fallback: beam search has a bounded runtime independent
-                    // of the combination count, unlike re-running the brute force on CPU.
-                    Log.Warning(ex, "GPU solve failed; falling back to lightweight CPU beam search.");
-                    var beamSearch = new ModuleOptimizerBeam(config, playerMods, sw, filtered, cancelToken);
+                    Log.Warning(ex, "GPU solve failed; debug CPU fallback (beam search) is enabled.");
+
+                    var beamSearch = new ModuleOptimizerBeam(config, playerMods, sw, filtered, cancelToken)
+                    {
+                        ProgressCallback = progress
+                    };
                     result = beamSearch.Solve();
                     result.UsedCpuFallback = true;
                 }
@@ -375,11 +386,14 @@ namespace BPSR_ZDPS.Managers
             {
                 if (possableStats.TryGetValue(statPrio.Id, out var idx))
                 {
+                    // This (unreachable) SIMD path has no cap support; treat a negative
+                    // ReqLevel as "no lower bound" (0) so the byte cast never wraps to 255,
+                    // and ignore A/E for cap-mode priorities.
                     statMins[idx] = (byte)statPrio.MinLevel;
-                    statReqs[idx] = (byte)statPrio.ReqLevel;
-                    statMask[idx] = (byte)statPrio.StatMode;
+                    statReqs[idx] = (byte)statPrio.GetLowerReq();
+                    statMask[idx] = (byte)(statPrio.HasCap ? StatMode.Atleast : statPrio.StatMode);
 
-                    if (statPrio.StatMode == StatMode.Exactly)
+                    if (!statPrio.HasCap && statPrio.StatMode == StatMode.Exactly)
                     {
                         hasExactStatMode = true;
                     }
@@ -717,15 +731,54 @@ namespace BPSR_ZDPS.Managers
             return true;
         }
 
-        private List<long> FilterModulesWithStats(SolverConfig config, PlayerModDataSave playerMods)
+        /// <summary>
+        /// UI pre-estimate: the number of K-module combinations over the current candidate set,
+        /// using the raw filtered count (quality / priority-or-brute-force / total-link cutoff)
+        /// before the internal dedup + dominance reduction. Returns a double that saturates to
+        /// +Inf for astronomically large counts (e.g. 10 modules over a huge inventory).
+        /// </summary>
+        public static double EstimateComboCount(SolverConfig config, PlayerModDataSave playerMods)
         {
+            if (playerMods?.ModulesPackage?.Items == null)
+            {
+                return 0d;
+            }
+
+            int n = FilterModulesWithStats(config, playerMods).Count;
+            int k = Math.Clamp(config.NumModules, 1, ModuleSet.MaxModules);
+            return EstimateCombinations(n, k);
+        }
+
+        private static List<long> FilterModulesWithStats(SolverConfig config, PlayerModDataSave playerMods)
+        {
+            // Stats capped at 0 (ReqLevel -6, "exclude") must not appear at all, so any module
+            // carrying one can never be part of a valid combo -> drop it from the candidate set
+            // outright. This also shrinks the reported combination count and the search space.
+            var excludedStats = config.StatPriorities.Where(p => p.GetCap() == 0).Select(p => p.Id).ToHashSet();
+
             var modules = new List<long>();
             foreach (var item in playerMods.ModulesPackage.Items)
             {
                 var qualityValue = Math.Clamp(item.Value.Quality, 0, 4);
                 if (config.QualitiesV2.TryGetValue(qualityValue, out var quality) ? quality : false)
                 {
-                    if (item.Value.ModNewAttr.ModParts.Any(x => config.StatPriorities.Any(y => y.Id == x)))
+                    // Skip modules whose summed link levels are at or below the cutoff (0 = keep all).
+                    if (!PassesModuleTotalCutoff(config, playerMods, item.Key))
+                    {
+                        continue;
+                    }
+
+                    // A module carrying a fully-excluded stat can never yield a valid combo,
+                    // even under brute force, so it never enters the candidate set.
+                    if (excludedStats.Count > 0 && item.Value.ModNewAttr.ModParts.Any(x => excludedStats.Contains(x)))
+                    {
+                        continue;
+                    }
+
+                    // Brute force mode ignores the stat-priority list and keeps every module
+                    // of an enabled quality; otherwise keep only modules that carry a priority stat.
+                    if (config.BruteForceAllModules ||
+                        item.Value.ModNewAttr.ModParts.Any(x => config.StatPriorities.Any(y => y.Id == x)))
                     {
                         modules.Add(item.Key);
                     }
@@ -733,6 +786,29 @@ namespace BPSR_ZDPS.Managers
             }
 
             return modules.ToList();
+        }
+
+        /// <summary>
+        /// True unless the module's summed link levels are at or below <see cref="SolverConfig.ModuleTotalCutoff"/>
+        /// (a cutoff of 0 keeps every module).
+        /// </summary>
+        private static bool PassesModuleTotalCutoff(SolverConfig config, PlayerModDataSave playerMods, long modId)
+        {
+            if (config.ModuleTotalCutoff <= 0)
+            {
+                return true;
+            }
+
+            int total = 0;
+            if (playerMods.Mod.ModInfos.TryGetValue(modId, out var info))
+            {
+                for (int i = 0; i < info.InitLinkNums.Count; i++)
+                {
+                    total += info.InitLinkNums[i];
+                }
+            }
+
+            return total > config.ModuleTotalCutoff;
         }
 
         private ushort GetStatMultiplier(SolverConfig config, int statId)

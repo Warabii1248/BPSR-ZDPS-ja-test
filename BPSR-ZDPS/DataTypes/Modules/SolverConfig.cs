@@ -13,8 +13,18 @@ namespace BPSR_ZDPS.DataTypes.Modules
         public bool ValueAllStats = true;
         public int NumModules = 5;
 
+        // When true the optimizer ignores the stat-priority list and brute forces every
+        // owned module (of the enabled qualities), ranking by the active ScoreMode.
+        public bool BruteForceAllModules = false;
+
+        // Modules whose summed link levels are at or below this are excluded from the
+        // candidate set (0 = keep all). Trims weak modules and shrinks the search space.
+        public int ModuleTotalCutoff = 0;
+
         // Which score the optimizer maximizes/ranks by.
         public ScoreMode ScoreMode = ScoreMode.ZScore;
+        // Which ZScore heuristic to use (Enhanced = this fork's tuning, Original = upstream).
+        public ScoringModel ScoringModel = ScoringModel.Enhanced;
         // Non-linear priority-order boost strength: weight = numPrios / (pos+1)^strength.
         public float OrderBoostStrength = 1f;
         // Score multiplier applied to legendary stats (ModuleSolver.LegendaryStats).
@@ -66,7 +76,8 @@ namespace BPSR_ZDPS.DataTypes.Modules
                                 Id = int.Parse(statParts[0]),
                                 MinLevel = 0, //Math.Clamp(int.Parse(statParts[1]), 0, 20),
                                 StatMode = (StatMode)Math.Clamp(int.Parse(statParts[1]), 0, 1),
-                                ReqLevel = Math.Clamp(int.Parse(statParts[2]), 0, 20),
+                                // Negative (-6..-1) encodes an upper-bound cap; positive is a lower bound.
+                                ReqLevel = Math.Clamp(int.Parse(statParts[2]), -6, 20),
                             };
 
                             StatPriorities.Add(prio);
@@ -104,7 +115,10 @@ namespace BPSR_ZDPS.DataTypes.Modules
                 LinkLevelBonus = LinkLevelBonus,
                 ValueAllStats = ValueAllStats,
                 NumModules = NumModules,
+                BruteForceAllModules = BruteForceAllModules,
+                ModuleTotalCutoff = ModuleTotalCutoff,
                 ScoreMode = ScoreMode,
+                ScoringModel = ScoringModel,
                 OrderBoostStrength = OrderBoostStrength,
                 LegendaryStatMultiplier = LegendaryStatMultiplier
             };

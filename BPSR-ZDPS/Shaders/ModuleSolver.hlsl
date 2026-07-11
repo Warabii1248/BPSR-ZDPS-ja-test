@@ -1,20 +1,35 @@
 // ===========================================================================
 // ModuleSolver.hlsl  -  DirectCompute (Shader Model 5.0) module-combo solver
 // ---------------------------------------------------------------------------
-// One thread evaluates one K-module combination (K = 1..10), scoring it with
-// either the heuristic "ZScore" (mirrors ModuleOptimizerBeam.CalcScore: breakpoint
-// snap x link bonus x legendary/order weights + overcap points) or the in-game
-// "combat power" (mirrors CalcCombosCombatScore).
+// Evaluates K-module combinations (K = 1..10), scoring each with either the
+// heuristic "ZScore" (mirrors ModuleOptimizerBeam.CalcScore: breakpoint snap x
+// link bonus x legendary/order weights, plus overcap points when OriginalScoring
+// is set) or the in-game "combat power" (mirrors CalcCombosCombatScore).
 //
-// Dispatch grid = (G, numI, 1):
-//   * groupId.y = i              -> the fixed first module index of the combo.
-//   * groupId.x in [0, G)        -> a slice of the C(N-i-1, K-1) sub-combos,
-//                                   walked with a grid-stride loop.
-// Per-i enumeration keeps every combinatorial number in uint32 (no 64-bit math).
+// Dispatch grid = (G, rows, 1), issued by the CPU as many small slices so each GPU
+// packet stays far below the ~2s Windows TDR limit (the game shares the GPU):
+//   * IBase + groupId.y = i      -> the fixed first module index of the combo.
+//   * Each thread owns a CONTIGUOUS chunk of the [RankStart, RankEnd) sub-combo
+//     ranks: it unranks its first combo once, then walks to each next combination
+//     incrementally (odometer), keeping a running prefix total of the first K-1
+//     modules. This avoids the O(N) per-combo unranking and the K*S per-combo
+//     stat accumulation of a strided walk, and keeps warps convergent.
 //
-// Each candidate is identified by (i, rank) where rank is the lexicographic
-// index of the chosen K-1 offsets; the CPU re-expands rank -> module indices
-// for the final top-10, so the kernel stays K-agnostic and light on registers.
+// Modes (CollectMode in the cbuffer):
+//   * 0 (solve):   per-thread top-K -> groupshared merge -> Output accumulates each
+//                  (i, group)'s top-K across slices (thread 0 seeds its merge from
+//                  the previous contents); requirement gates are enforced.
+//   * 1 (collect): every combo whose score >= ScoreThreshold is appended to PoolOut
+//                  (requirement gates ignored) to build the brute-force result cache.
+//
+// ModuleStats packs four 8-bit stat values per uint (module stats are link levels,
+// <= 255); all per-stat buffers are zero-padded to a multiple of 4 entries so the
+// kernel can loop word-wise without bounds checks.
+//
+// Each candidate is identified by (i, rank); the CPU re-expands rank -> module
+// indices for the final results. Per-i enumeration keeps every combinatorial
+// number in uint32 (no 64-bit math). Slices are sized <= COMBO_BUDGET sub-combos
+// by the CPU, so rank arithmetic inside a slice cannot overflow uint32.
 // ===========================================================================
 
 #define THREADS 64
@@ -25,25 +40,30 @@
 
 cbuffer Params : register(b0)
 {
-    uint NumModules;    // N (filtered module count)
-    uint K;             // combo size (1..10)
-    uint NumStats;      // S (distinct normalized stats, <= MAX_STATS)
-    uint ScoreModeV;    // 0 = ZScore, 1 = CombatPower
-    uint HasExact;      // 1 if any priority uses StatMode.Exactly
-    uint MaxTotal;      // K*20, last valid index into LinkTotalFight
-    uint GroupsX;       // G (grid.x dimension)
-    uint _pad0;
+    uint NumModules;      // N (filtered module count)
+    uint K;               // combo size (1..10)
+    uint NumStats;        // S (distinct normalized stats, <= MAX_STATS); buffers padded to ceil4(S)
+    uint ScoreModeV;      // 0 = ZScore, 1 = CombatPower
+    uint HasExact;        // 1 if any priority uses StatMode.Exactly
+    uint MaxTotal;        // K*20, last valid index into LinkTotalFight
+    uint GroupsX;         // G (grid.x dimension)
+    uint IBase;           // first module row covered by this dispatch (added to groupId.y)
+    uint RankStart;       // first sub-combo rank of this slice
+    uint RankEnd;         // one past the last rank of this slice (clamped to subCount)
+    uint OriginalScoring; // 1 = upstream ZScore (adds overcap points)
+    uint CollectMode;     // 1 = append combos with score >= ScoreThreshold (gates ignored)
+    int  ScoreThreshold;  // collect mode: minimum score to keep
 };
 
-StructuredBuffer<uint> ModuleStats   : register(t0); // [N*S]   stat value per (module, stat)
-StructuredBuffer<float> StatMul       : register(t1); // [S]     ZScore weight: legendaryMul x orderBoost (0 = ignore)
-StructuredBuffer<int>  StatReq        : register(t2); // [S]     required link level
-StructuredBuffer<int>  StatMin        : register(t3); // [S]     minimum link level (usually 0)
-StructuredBuffer<int>  StatExact      : register(t4); // [S]     1 if Exactly mode
-StructuredBuffer<uint> Binom          : register(t5); // [(N+1)*(K+1)] C(n,k)
-StructuredBuffer<int>  LinkBonus       : register(t6); // [6]     link-level breakpoint bonus
-StructuredBuffer<int>  StatCombat     : register(t7); // [S*6]   combat FightValue per (stat, tier)
-StructuredBuffer<int>  LinkTotalFight : register(t8); // [MaxTotal+1] combat bonus per total link
+StructuredBuffer<uint>  ModuleStats    : register(t0); // [N * ceil(S/4)] four packed 8-bit values per uint
+StructuredBuffer<float> StatMul        : register(t1); // [ceil4(S)] ZScore weight: legendaryMul x orderBoost (0 = ignore)
+StructuredBuffer<int>   StatReq        : register(t2); // [ceil4(S)] required link level
+StructuredBuffer<int>   StatExact      : register(t3); // [ceil4(S)] 1 if Exactly mode
+StructuredBuffer<uint>  Binom          : register(t4); // [(N+1)*(K+1)] C(n,k)
+StructuredBuffer<int>   LinkBonus      : register(t5); // [6] link-level breakpoint bonus
+StructuredBuffer<int>   StatCombat     : register(t6); // [ceil4(S)*6] combat FightValue per (stat, tier)
+StructuredBuffer<int>   LinkTotalFight : register(t7); // [MaxTotal+1] combat bonus per total link
+StructuredBuffer<int>   StatCap        : register(t8); // [ceil4(S)] upper-bound cap per stat (huge sentinel = no cap)
 
 struct Candidate
 {
@@ -52,7 +72,8 @@ struct Candidate
     uint Rank;  // lexicographic rank of the chosen K-1 offsets (decoded on CPU)
 };
 
-RWStructuredBuffer<Candidate> Output : register(u0);
+RWStructuredBuffer<Candidate>     Output  : register(u0); // solve mode: per-(i,group) top-K
+AppendStructuredBuffer<Candidate> PoolOut : register(u1); // collect mode: threshold pool
 
 groupshared int  gScore[THREADS * TOPK];
 groupshared uint gRank[THREADS * TOPK];
@@ -106,19 +127,100 @@ void LocalInsert(inout int s[TOPK], inout uint rk[TOPK], int score, uint rank)
     rk[pos] = rank;
 }
 
+// Adds module modIdx's (packed) stat values into the running prefix totals.
+void AddModuleStats(inout int prefix[MAX_STATS], uint modIdx, uint sPacked)
+{
+    for (uint w = 0; w < sPacked; w++)
+    {
+        uint word = ModuleStats[modIdx * sPacked + w];
+        uint b = w * 4;
+        prefix[b + 0] += (int)( word        & 0xFF);
+        prefix[b + 1] += (int)((word >> 8)  & 0xFF);
+        prefix[b + 2] += (int)((word >> 16) & 0xFF);
+        prefix[b + 3] += (int)((word >> 24) & 0xFF);
+    }
+}
+
+// Scores prefix + lastMod under the active mode; `valid` reports the requirement
+// gates (ignored by the caller in collect mode). Padded stat lanes are all-zero
+// (mul 0, req 0, combat 0), so looping the padded range needs no bounds checks.
+int ScoreCombo(int prefix[MAX_STATS], uint lastMod, uint sPacked, out bool valid)
+{
+    bool anyExact = false;
+    bool reqOk = true;
+    int score = 0;
+    int totalSum = 0;
+
+    for (uint w = 0; w < sPacked; w++)
+    {
+        uint word = ModuleStats[lastMod * sPacked + w];
+        [unroll]
+        for (uint b = 0; b < 4; b++)
+        {
+            uint s = w * 4 + b;
+            int tv = prefix[s] + (int)((word >> (b * 8)) & 0xFF);
+
+            if (StatExact[s] != 0 && tv == StatReq[s])
+                anyExact = true;
+            if (min(tv, 20) < StatReq[s])
+                reqOk = false;
+            // Upper-bound cap: this stat's raw total must not exceed StatCap[s]
+            // (a huge sentinel disables it). Cap 0 excludes the stat entirely.
+            if (tv > StatCap[s])
+                reqOk = false;
+
+            if (ScoreModeV == 0)
+            {
+                // ZScore, mirrors ModuleOptimizerBeam.CalcScore. Enhanced: no points
+                // past the level-20 breakpoint (favors 20/20/16 over 30/30).
+                // Original: upstream behavior, unweighted overcap (tv - bp) added.
+                float wgt = StatMul[s];
+                if (wgt > 0)
+                {
+                    int tvc = min(tv, 50);
+                    int bp = SnapBp(tvc);
+                    int statScore = (int)((bp * LinkBonus[LinkTier(tvc)]) * wgt);
+                    if (OriginalScoring != 0)
+                        statScore += tvc - bp;
+                    score += statScore;
+                }
+            }
+            else
+            {
+                // Combat power, mirrors CalcCombosCombatScore.
+                totalSum += tv;
+                if (tv >= 1)
+                    score += StatCombat[s * 6 + LinkTier(tv)];
+            }
+        }
+    }
+
+    if (ScoreModeV != 0)
+    {
+        if (totalSum < 0) totalSum = 0;
+        if ((uint)totalSum > MaxTotal) totalSum = (int)MaxTotal;
+        score += LinkTotalFight[totalSum];
+    }
+
+    valid = reqOk && (HasExact == 0 || anyExact);
+    return score;
+}
+
 [numthreads(THREADS, 1, 1)]
 void CSMain(uint3 groupId : SV_GroupID, uint3 gtid : SV_GroupThreadID)
 {
-    uint i = groupId.y;
-    uint groupX = groupId.x;
+    uint i = IBase + groupId.y;
     uint tid = gtid.x;
 
+    // Uniform per group (i comes from groupId.y), so early-out is barrier-safe.
     if (i + K > NumModules)
         return;
 
     uint m = NumModules - i - 1;   // count of modules after i
     uint t = K - 1;                // choose t from m
     uint subCount = Binom2(m, t);
+    uint rankEnd = min(subCount, RankEnd);
+    uint sPacked = (NumStats + 3) / 4;
 
     int  sBest[TOPK];
     uint rBest[TOPK];
@@ -129,14 +231,52 @@ void CSMain(uint3 groupId : SV_GroupID, uint3 gtid : SV_GroupThreadID)
         rBest[z] = 0;
     }
 
+    // Contiguous chunk per thread. `remaining` <= COMBO_BUDGET (CPU slicing), so
+    // chunk/offset arithmetic stays far below uint32 range. All flow control below
+    // is kept flat (no loops nested inside thread-varying branches): fxc's X4026
+    // reconvergence analysis rejects such nesting ahead of the group sync.
+    uint remaining = (RankStart < rankEnd) ? (rankEnd - RankStart) : 0;
     uint totalThreads = GroupsX * THREADS;
-    uint globalId = groupX * THREADS + tid;
+    uint globalId = groupId.x * THREADS + tid;
+    uint chunk = (remaining + totalThreads - 1) / totalThreads;
+    uint offset = globalId * chunk;
+    bool hasWork = offset < remaining;
+    uint myStart = RankStart + (hasWork ? offset : 0);
+    uint myCount = hasWork ? min(chunk, remaining - offset) : 0;
 
-    for (uint r = globalId; r < subCount; r += totalThreads)
+    if (t == 0)
     {
-        // ---- unrank r -> t increasing offsets in [0, m) (lexicographic) ----
+        // K == 1: the row's single combo is module i itself (rank 0). Score
+        // unconditionally (uniform flow); gate only the emit on hasWork.
+        int prefix0[MAX_STATS];
+        [unroll]
+        for (uint z0 = 0; z0 < MAX_STATS; z0++) prefix0[z0] = 0;
+
+        bool valid0;
+        int score0 = ScoreCombo(prefix0, i, sPacked, valid0);
+        if (CollectMode != 0)
+        {
+            if (myCount != 0 && score0 >= ScoreThreshold)
+            {
+                Candidate c0;
+                c0.Score = score0;
+                c0.I = i;
+                c0.Rank = 0;
+                PoolOut.Append(c0);
+            }
+        }
+        else if (myCount != 0 && valid0)
+        {
+            LocalInsert(sBest, rBest, score0, 0);
+        }
+    }
+    else
+    {
+        // ---- unrank myStart -> t increasing offsets in [0, m) (once per thread) ----
+        // Runs even for idle threads (myCount == 0, garbage rank): it terminates in
+        // <= m + t steps regardless and the main loop below then runs zero times.
         uint chosen[MAX_K];
-        uint rank = r;
+        uint rank = myStart;
         uint c = 0;
         for (uint j = 0; j < t; j++)
         {
@@ -147,99 +287,82 @@ void CSMain(uint3 groupId : SV_GroupID, uint3 gtid : SV_GroupThreadID)
                 rank -= cnt;
                 c += 1;
             }
-            chosen[j] = c;
+            chosen[j] = min(c, m - 1);
             c += 1;
         }
 
-        // ---- accumulate stat totals across the K modules ----
-        int totals[MAX_STATS];
+        // ---- prefix totals over module i + chosen[0..t-2] ----
+        int prefix[MAX_STATS];
         [unroll]
-        for (int s0 = 0; s0 < MAX_STATS; s0++)
-            totals[s0] = 0;
+        for (uint z1 = 0; z1 < MAX_STATS; z1++) prefix[z1] = 0;
+        AddModuleStats(prefix, i, sPacked);
+        for (uint q = 0; q + 1 < t; q++)
+            AddModuleStats(prefix, i + 1 + chosen[q], sPacked);
 
-        uint mod0 = i;
-        for (uint s1 = 0; s1 < NumStats; s1++)
-            totals[s1] += (int)ModuleStats[mod0 * NumStats + s1];
-
-        for (uint jj = 0; jj < t; jj++)
+        // Uniform trip count (chunk): fxc only accepts a pre-sync loop whose bound is
+        // non-varying. Threads guard their live range via myCount inside the body.
+        for (uint step = 0; step < chunk; step++)
         {
-            uint modIdx = i + 1 + chosen[jj];
-            for (uint s2 = 0; s2 < NumStats; s2++)
-                totals[s2] += (int)ModuleStats[modIdx * NumStats + s2];
-        }
+            bool valid;
+            int score = ScoreCombo(prefix, i + 1 + chosen[t - 1], sPacked, valid);
 
-        // ---- shared validity gate (required / exactly link levels) ----
-        bool valid = true;
-
-        if (HasExact != 0)
-        {
-            bool anyExact = false;
-            for (uint se = 0; se < NumStats; se++)
+            if (CollectMode != 0)
             {
-                if (StatExact[se] != 0 && totals[se] == StatReq[se])
-                    anyExact = true;
-            }
-            if (!anyExact)
-                valid = false;
-        }
-
-        if (valid)
-        {
-            for (uint sr = 0; sr < NumStats; sr++)
-            {
-                int mined = min(totals[sr], 20);
-                if (mined < StatReq[sr]) { valid = false; break; }
-            }
-        }
-
-        if (!valid)
-            continue;
-
-        // ---- score ----
-        int score = 0;
-
-        if (ScoreModeV == 0)
-        {
-            // ZScore, mirrors ModuleOptimizerBeam.CalcScore:
-            // (breakpoint level x link bonus) x weight + unweighted overcap points,
-            // where weight = legendaryMul x priority orderBoost (pre-combined in StatMul).
-            for (uint s = 0; s < NumStats; s++)
-            {
-                float w = StatMul[s];
-                if (w > 0)
+                if (step < myCount && score >= ScoreThreshold)
                 {
-                    int tv = min(totals[s], 50);
-                    int bp = SnapBp(tv);
-                    score += (int)((bp * LinkBonus[LinkTier(tv)]) * w + (tv - bp));
+                    Candidate cand;
+                    cand.Score = score;
+                    cand.I = i;
+                    cand.Rank = myStart + step;
+                    PoolOut.Append(cand);
+                }
+            }
+            else if (step < myCount && valid)
+            {
+                LocalInsert(sBest, rBest, score, myStart + step);
+            }
+
+            // ---- advance to the next combination (odometer) ----
+            if (step + 1 < myCount)
+            {
+                // Bounded scan (not a while) so fxc can prove termination.
+                uint jj = t - 1;
+                [loop]
+                for (uint d = 0; d < MAX_K; d++)
+                {
+                    if (jj == 0 || chosen[jj] != m - t + jj)
+                        break;
+                    jj--;
+                }
+                chosen[jj] += 1;
+                if (jj != t - 1)
+                {
+                    for (uint q2 = jj + 1; q2 < t; q2++)
+                        chosen[q2] = chosen[q2 - 1] + 1;
+
+                    // Prefix modules changed: rebuild i + chosen[0..t-2].
+                    [unroll]
+                    for (uint z2 = 0; z2 < MAX_STATS; z2++) prefix[z2] = 0;
+                    AddModuleStats(prefix, i, sPacked);
+                    for (uint q3 = 0; q3 + 1 < t; q3++)
+                        AddModuleStats(prefix, i + 1 + chosen[q3], sPacked);
                 }
             }
         }
-        else
-        {
-            // Combat power, mirrors CalcCombosCombatScore.
-            int totalSum = 0;
-            for (uint s = 0; s < NumStats; s++)
-            {
-                int v = totals[s];
-                totalSum += v;
-                if (v >= 1)
-                    score += StatCombat[s * 6 + LinkTier(v)];
-            }
-            if (totalSum < 0) totalSum = 0;
-            if ((uint)totalSum > MaxTotal) totalSum = (int)MaxTotal;
-            score += LinkTotalFight[totalSum];
-        }
-
-        LocalInsert(sBest, rBest, score, r);
     }
+
+    // Collect mode never touches Output. CollectMode comes from the cbuffer, so
+    // this branch is non-varying and the group sync inside it stays legal.
+    if (CollectMode != 0)
+        return;
 
     // ---- publish local top-K to groupshared ----
     [unroll]
-    for (int w = 0; w < TOPK; w++)
+    for (int w2 = 0; w2 < TOPK; w2++)
     {
-        uint gi = tid * TOPK + w;
-        gScore[gi] = sBest[w];
-        gRank[gi] = rBest[w];
+        uint gi = tid * TOPK + w2;
+        gScore[gi] = sBest[w2];
+        gRank[gi] = rBest[w2];
     }
 
     GroupMemoryBarrierWithGroupSync();
@@ -247,10 +370,15 @@ void CSMain(uint3 groupId : SV_GroupID, uint3 gtid : SV_GroupThreadID)
     // ---- thread 0 merges the group's THREADS*TOPK entries into a group top-K ----
     if (tid == 0)
     {
+        uint baseOut = (i * GroupsX + groupId.x) * TOPK;
+
         int  ms[TOPK];
         uint mr[TOPK];
+        // Seed from the previous slices' results for this (i, group) so the top-K
+        // accumulates across the CPU-issued rank slices (buffer is pre-cleared to
+        // SCORE_INVALID before the first slice).
         [unroll]
-        for (int q = 0; q < TOPK; q++) { ms[q] = SCORE_INVALID; mr[q] = 0; }
+        for (int q4 = 0; q4 < TOPK; q4++) { ms[q4] = Output[baseOut + q4].Score; mr[q4] = Output[baseOut + q4].Rank; }
 
         uint count = THREADS * TOPK;
         for (uint e = 0; e < count; e++)
@@ -272,7 +400,6 @@ void CSMain(uint3 groupId : SV_GroupID, uint3 gtid : SV_GroupThreadID)
             mr[pos] = gRank[e];
         }
 
-        uint baseOut = (i * GroupsX + groupX) * TOPK;
         [unroll]
         for (int o = 0; o < TOPK; o++)
         {

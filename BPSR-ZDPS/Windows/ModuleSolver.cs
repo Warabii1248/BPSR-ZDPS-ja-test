@@ -39,11 +39,28 @@ namespace BPSR_ZDPS
         private static Task ModuleCalcTask;
         private static DateTime ModuleCalcStartTime = DateTime.Now;
         private static string CurrentPresetString = "";
+
+        // Widest settings-row label seen so far. The label column is sized to this so
+        // longer localized labels (JP) don't get clipped at the original fixed 200px.
+        private static float SettingsLabelColWidth = 200f;
         static int RunOnceDelayed = 0;
         private static bool ShouldTrackOpenState;
         private static bool LastSolveUsedCpuFallback;
+        // Solve progress (0..1), written from the solver's worker threads.
+        private static volatile float CalcProgress;
+        // Non-null when the last solve failed; shown in the results panel.
+        private static string? LastSolveError;
+        // Last solve came from the brute-force pool cache (and whether it was exact).
+        private static bool LastSolveFromCache;
+        private static bool LastSolveCacheExact;
 
         public static List<long> FilteredModules = [];
+
+        // Live estimate of the exhaustive combination count for the current settings, shown
+        // next to the Calculate button (GPU/exhaustive backend only). Recomputed only when a
+        // lightweight signature of the inputs changes (see RefreshComboCountEstimate).
+        private static string ComboCountText = "";
+        private static string ComboCountSig = "";
 
         public static void Init()
         {
@@ -145,7 +162,8 @@ namespace BPSR_ZDPS
                 if (ModuleCalcTask?.Status == TaskStatus.Running)
                 {
                     var timeTaken = DateTime.Now - ModuleCalcStartTime;
-                    DrawBanner(string.Format(AppStrings.GetLocalized("Module_Calculating"), $"{timeTaken:mm\\:ss}"), 0xFF005DD9, "Thinking.png", true,
+                    var progressPct = (int)(Math.Clamp(CalcProgress, 0f, 1f) * 100);
+                    DrawBanner(string.Format(AppStrings.GetLocalized("Module_Calculating"), $"{timeTaken:mm\\:ss}", progressPct), 0xFF005DD9, "Thinking.png", true,
                         (drawList, txtPos, txtSize, bannerHeight) =>
                         {
                             var cancelButtonStart = txtPos + new Vector2(0, 100);
@@ -183,7 +201,7 @@ namespace BPSR_ZDPS
                     {
                         if (ImGui.BeginTable("settings_table", 2, ImGuiTableFlags.BordersInnerV | ImGuiTableFlags.PadOuterX | ImGuiTableFlags.BordersInnerH))
                         {
-                            ImGui.TableSetupColumn("Label", ImGuiTableColumnFlags.WidthFixed, 200f);
+                            ImGui.TableSetupColumn("Label", ImGuiTableColumnFlags.WidthFixed, SettingsLabelColWidth);
                             ImGui.TableSetupColumn("Value", ImGuiTableColumnFlags.WidthStretch);
 
                             AddSettingRow(AppStrings.GetLocalized("Module_Settings_PresetShareCode"), () => {
@@ -203,10 +221,16 @@ namespace BPSR_ZDPS
                                         solverConfig.QualitiesV2 = SolverConfig.QualitiesV2;
                                         solverConfig.NumModules = SolverConfig.NumModules;
                                         solverConfig.ValueAllStats = SolverConfig.ValueAllStats;
+                                        solverConfig.BruteForceAllModules = SolverConfig.BruteForceAllModules;
+                                        solverConfig.ModuleTotalCutoff = SolverConfig.ModuleTotalCutoff;
                                         solverConfig.ScoreMode = SolverConfig.ScoreMode;
+                                        solverConfig.ScoringModel = SolverConfig.ScoringModel;
                                         solverConfig.OrderBoostStrength = SolverConfig.OrderBoostStrength;
                                         solverConfig.LegendaryStatMultiplier = SolverConfig.LegendaryStatMultiplier;
                                         SolverConfig = solverConfig;
+                                        // Re-link the saved settings to the new instance; otherwise later
+                                        // edits (ScoreMode etc.) mutate a detached object and never persist.
+                                        Settings.Instance.WindowSettings.ModuleWindow.LastUsedPreset.Config = solverConfig;
                                     }
                                 }
                                 ImGui.SameLine();
@@ -247,24 +271,96 @@ namespace BPSR_ZDPS
                                 ImGui.PopStyleColor(2);
                             });
 
+                            AddSettingRow(AppStrings.GetLocalized("Module_Settings_BruteForce"), () =>
+                            {
+                                var val = SolverConfig.BruteForceAllModules;
+                                if (ImGui.Checkbox("##BruteForceAllModules", ref val))
+                                {
+                                    SolverConfig.BruteForceAllModules = val;
+                                }
+                                ModuleTooltip(AppStrings.GetLocalized("Module_Settings_BruteForce_Tooltip"));
+                            });
+
+                            AddSettingRow(AppStrings.GetLocalized("Module_Settings_ModuleTotalCutoff"), () =>
+                            {
+                                ImGui.SetNextItemWidth(300);
+                                int cutoff = SolverConfig.ModuleTotalCutoff;
+                                if (ImGui.InputInt("##ModuleTotalCutoff", ref cutoff, 1))
+                                {
+                                    SolverConfig.ModuleTotalCutoff = Math.Clamp(cutoff, 0, 60);
+                                }
+                                ModuleTooltip(AppStrings.GetLocalized("Module_Settings_ModuleTotalCutoff_Tooltip"));
+                            });
+
                             AddSettingRow(AppStrings.GetLocalized("Module_Settings_ComputeBackend"), () =>
                             {
-                                // GPU is always preferred; when it is unavailable the solver falls back
-                                // to the lightweight CPU beam search automatically (resets on restart).
-                                var adapter = Managers.ModuleOptimizer.GpuAdapterName;
-                                if (Managers.ModuleOptimizer.GpuUnavailable)
+                                // User-selected backend. There is no automatic fallback: a GPU
+                                // failure is reported in the results panel and the solve stops.
+                                string[] backendNames = [AppStrings.GetLocalized("Module_Backend_Gpu"), AppStrings.GetLocalized("Module_Backend_Cpu")];
+                                int selected = (int)Settings.Instance.WindowSettings.ModuleWindow.ComputeBackend;
+                                ImGui.SetNextItemWidth(300);
+                                if (ImGui.Combo("##ComputeBackend", ref selected, backendNames, backendNames.Length))
                                 {
-                                    ImGui.PushStyleColor(ImGuiCol.Text, Colors.Red_Transparent);
-                                    ImGui.TextUnformatted(AppStrings.GetLocalized("Module_Settings_GpuUnavailable"));
-                                    ImGui.PopStyleColor();
+                                    Settings.Instance.WindowSettings.ModuleWindow.ComputeBackend = (ComputeBackend)Math.Clamp(selected, 0, 1);
                                 }
-                                else if (!string.IsNullOrEmpty(adapter))
+                                ModuleTooltip(AppStrings.GetLocalized("Module_Settings_ComputeBackend_Tooltip"));
+
+                                if (Settings.Instance.WindowSettings.ModuleWindow.ComputeBackend == ComputeBackend.Gpu)
                                 {
-                                    ImGui.TextUnformatted($"GPU ({adapter})");
+                                    var adapter = Managers.ModuleOptimizer.GpuAdapterName;
+                                    if (Managers.ModuleOptimizer.GpuUnavailable)
+                                    {
+                                        ImGui.PushStyleColor(ImGuiCol.Text, Colors.Red_Transparent);
+                                        ImGui.TextUnformatted(AppStrings.GetLocalized("Module_Settings_GpuUnavailable"));
+                                        ImGui.PopStyleColor();
+                                    }
+                                    else if (!string.IsNullOrEmpty(adapter))
+                                    {
+                                        ImGui.TextDisabled(adapter);
+                                    }
+                                    else
+                                    {
+                                        ImGui.TextDisabled(AppStrings.GetLocalized("Module_Settings_GpuPending"));
+                                    }
+                                }
+                            });
+
+                            AddSettingRow(AppStrings.GetLocalized("Module_Settings_ResultCache"), () =>
+                            {
+                                var modWin = Settings.Instance.WindowSettings.ModuleWindow;
+
+                                var useCache = modWin.UseBruteForceCache;
+                                if (ImGui.Checkbox("##UseBruteForceCache", ref useCache))
+                                {
+                                    modWin.UseBruteForceCache = useCache;
+                                }
+                                ModuleTooltip(AppStrings.GetLocalized("Module_Settings_ResultCache_Tooltip"));
+
+                                ImGui.SameLine();
+                                ImGui.BeginDisabled(!useCache);
+                                ImGui.SetNextItemWidth(120);
+                                int pct = modWin.CacheThresholdPct;
+                                if (ImGui.InputInt("%##CacheThresholdPct", ref pct, 5))
+                                {
+                                    modWin.CacheThresholdPct = Math.Clamp(pct, 1, 90);
+                                }
+                                ModuleTooltip(AppStrings.GetLocalized("Module_Settings_CachePct_Tooltip"));
+                                ImGui.EndDisabled();
+
+                                var status = Managers.ModuleOptimizer.PoolCacheStatus;
+                                if (status.HasValue)
+                                {
+                                    ImGui.TextDisabled(string.Format(AppStrings.GetLocalized("Module_Cache_Status"),
+                                        status.Value.Entries.ToString("N0"), status.Value.BuiltAt.ToString("HH:mm:ss"), status.Value.EffectivePct));
+                                    ImGui.SameLine();
+                                    if (ImGui.SmallButton(AppStrings.GetLocalized("Module_Cache_Clear") + "##ClearPoolCache"))
+                                    {
+                                        Managers.ModuleOptimizer.ClearPoolCache();
+                                    }
                                 }
                                 else
                                 {
-                                    ImGui.TextDisabled(AppStrings.GetLocalized("Module_Settings_GpuPending"));
+                                    ImGui.TextDisabled(AppStrings.GetLocalized("Module_Cache_None"));
                                 }
                             });
 
@@ -282,6 +378,18 @@ namespace BPSR_ZDPS
                             // Heuristic weights only affect the ZScore mode.
                             ImGui.BeginDisabled(SolverConfig.ScoreMode == ScoreMode.CombatPower);
 
+                            AddSettingRow(AppStrings.GetLocalized("Module_Settings_ScoringModel"), () =>
+                            {
+                                string[] modelNames = [AppStrings.GetLocalized("Module_ScoringModel_Enhanced"), AppStrings.GetLocalized("Module_ScoringModel_Original")];
+                                int selected = (int)SolverConfig.ScoringModel;
+                                ImGui.SetNextItemWidth(300);
+                                if (ImGui.Combo("##ScoringModel", ref selected, modelNames, modelNames.Length))
+                                {
+                                    SolverConfig.ScoringModel = (ScoringModel)Math.Clamp(selected, 0, 1);
+                                }
+                                ModuleTooltip(AppStrings.GetLocalized("Module_Settings_ScoringModel_Tooltip"));
+                            });
+
                             AddSettingRow(AppStrings.GetLocalized("Module_Settings_OrderBoostStrength"), () =>
                             {
                                 ImGui.SetNextItemWidth(300);
@@ -290,7 +398,7 @@ namespace BPSR_ZDPS
                                 {
                                     SolverConfig.OrderBoostStrength = strength;
                                 }
-                                ImGui.SetItemTooltip(AppStrings.GetLocalized("Module_Settings_OrderBoostStrength_Tooltip"));
+                                ModuleTooltip(AppStrings.GetLocalized("Module_Settings_OrderBoostStrength_Tooltip"));
                             });
 
                             AddSettingRow(AppStrings.GetLocalized("Module_Settings_LegendaryMul"), () =>
@@ -301,7 +409,7 @@ namespace BPSR_ZDPS
                                 {
                                     SolverConfig.LegendaryStatMultiplier = mul;
                                 }
-                                ImGui.SetItemTooltip(AppStrings.GetLocalized("Module_Settings_LegendaryMul_Tooltip"));
+                                ModuleTooltip(AppStrings.GetLocalized("Module_Settings_LegendaryMul_Tooltip"));
                             });
 
                             ImGui.EndDisabled();
@@ -410,6 +518,14 @@ namespace BPSR_ZDPS
 
         private static void AddSettingRow(string label, Action valueWidget)
         {
+            // Grow the label column to fit the widest label so nothing gets clipped.
+            // Applied on the next frame via TableSetupColumn (monotonic, so no flicker).
+            float needed = ImGui.CalcTextSize(label).X + 16f;
+            if (needed > SettingsLabelColWidth)
+            {
+                SettingsLabelColWidth = needed;
+            }
+
             ImGui.TableNextRow();
             ImGui.TableNextColumn();
             ImGui.Text(label);
@@ -434,38 +550,43 @@ namespace BPSR_ZDPS
             ImGui.BeginChild("LeftSection", new Vector2(leftWidth, contentRegion.Y - 55), ImGuiChildFlags.Borders);
             ImGui.SeparatorText(AppStrings.GetLocalized("Module_Section_Quality"));
 
+            // One quality per line with the checkboxes aligned to a column past the widest
+            // label: the old single-line layout clipped the wider localized labels (e.g. the
+            // Japanese "エクセレント") and their checkboxes off the edge of the left panel.
+            var basicLabel = AppStrings.GetLocalized("Module_Quality_Basic");
+            var advancedLabel = AppStrings.GetLocalized("Module_Quality_Advanced");
+            var excellentLabel = AppStrings.GetLocalized("Module_Quality_Excellent");
+            float qualityCheckX = Math.Max(ImGui.CalcTextSize(basicLabel).X,
+                Math.Max(ImGui.CalcTextSize(advancedLabel).X, ImGui.CalcTextSize(excellentLabel).X)) + 16;
+
             bool basicQuality = SolverConfig.QualitiesV2.TryGetValue(2, out var temp) ? temp : false;
             ImGui.AlignTextToFramePadding();
             ImGui.PushStyleColor(ImGuiCol.Text, Colors.QualityBasic);
-            ImGui.TextUnformatted(AppStrings.GetLocalized("Module_Quality_Basic"));
+            ImGui.TextUnformatted(basicLabel);
             ImGui.PopStyleColor();
-            ImGui.SameLine();
+            ImGui.SameLine(qualityCheckX);
             if (ImGui.Checkbox("##Basic", ref basicQuality))
             {
                 SolverConfig.QualitiesV2[2] = basicQuality;
             }
 
-            ImGui.SameLine();
-
             bool advancedQuality = SolverConfig.QualitiesV2.TryGetValue(3, out var temp2) ? temp2 : false;
             ImGui.AlignTextToFramePadding();
             ImGui.PushStyleColor(ImGuiCol.Text, Colors.QualityAdvanced);
-            ImGui.TextUnformatted(AppStrings.GetLocalized("Module_Quality_Advanced"));
+            ImGui.TextUnformatted(advancedLabel);
             ImGui.PopStyleColor();
-            ImGui.SameLine();
+            ImGui.SameLine(qualityCheckX);
             if (ImGui.Checkbox("##Advanced", ref advancedQuality))
             {
                 SolverConfig.QualitiesV2[3] = advancedQuality;
             }
 
-            ImGui.SameLine();
-
             bool excellentQuality = SolverConfig.QualitiesV2.TryGetValue(4, out var temp3) ? temp3 : false;
             ImGui.AlignTextToFramePadding();
             ImGui.PushStyleColor(ImGuiCol.Text, Colors.QualityExcellent);
-            ImGui.TextUnformatted(AppStrings.GetLocalized("Module_Quality_Excellent"));
+            ImGui.TextUnformatted(excellentLabel);
             ImGui.PopStyleColor();
-            ImGui.SameLine();
+            ImGui.SameLine(qualityCheckX);
             if (ImGui.Checkbox("##Excellent", ref excellentQuality))
             {
                 SolverConfig.QualitiesV2[4] = excellentQuality;
@@ -474,6 +595,14 @@ namespace BPSR_ZDPS
 
             ImGui.SeparatorText(AppStrings.GetLocalized("Module_Section_StatPriority"));
             ImGui.Spacing();
+
+            if (SolverConfig.BruteForceAllModules)
+            {
+                ImGui.PushStyleColor(ImGuiCol.Text, Colors.LightBlue_Transparent);
+                ImGui.TextWrapped(AppStrings.GetLocalized("Module_BruteForce_PriorityNote"));
+                ImGui.PopStyleColor();
+                ImGui.Spacing();
+            }
 
             int idToRemove = -1;
             for (int i = 0; i < SolverConfig.StatPriorities.Count; i++)
@@ -536,7 +665,7 @@ namespace BPSR_ZDPS
 
             if (isAlreadyAdded)
             {
-                ImGui.SetItemTooltip(AppStrings.GetLocalized("Module_StatAlreadyAdded"));
+                ModuleTooltip(AppStrings.GetLocalized("Module_StatAlreadyAdded"));
             }
             ImGui.EndDisabled();
 
@@ -560,7 +689,24 @@ namespace BPSR_ZDPS
                 ImGui.TextDisabled(AppStrings.GetLocalized("Module_Result_CpuFallback"));
             }
 
-            if (BestModResults?.Count > 0)
+            if (LastSolveFromCache && BestModResults != null && !IsCalculating)
+            {
+                ImGui.TextDisabled(AppStrings.GetLocalized(
+                    LastSolveCacheExact ? "Module_Result_FromCache_Exact" : "Module_Result_FromCache_Approx"));
+            }
+
+            if (LastSolveError != null && !IsCalculating)
+            {
+                ImGui.PushStyleColor(ImGuiCol.Text, Colors.Red_Transparent);
+                ImGui.PushFont(HelperMethods.Fonts["Segoe-Bold"], 22f);
+                ImGui.TextWrapped(AppStrings.GetLocalized("Module_Error_SolveFailed"));
+                ImGui.PopFont();
+                ImGui.TextWrapped(LastSolveError);
+                ImGui.PopStyleColor();
+                ImGui.Spacing();
+                ImGui.TextWrapped(AppStrings.GetLocalized("Module_Error_SolveFailed_Hint"));
+            }
+            else if (BestModResults?.Count > 0)
             {
                 lock (ResultsPlayerModData)
                 {
@@ -637,8 +783,18 @@ namespace BPSR_ZDPS
 
             ImGui.EndChild();
             ImGui.SetCursorPosX(leftWidth + 8);
-            if (ImGui.Button(string.Format(AppStrings.GetLocalized("Module_CalculateButton"), SolverConfig.NumModules) + "###CalculateButton", new Vector2(contentRegion.X - leftWidth, 0)))
+            RefreshComboCountEstimate();
+            var calcLabel = string.Format(AppStrings.GetLocalized("Module_CalculateButton"), SolverConfig.NumModules);
+            if (ComboCountText.Length > 0)
             {
+                calcLabel += " " + ComboCountText;
+            }
+            if (ImGui.Button(calcLabel + "###CalculateButton", new Vector2(contentRegion.X - leftWidth, 0)))
+            {
+                // Settings normally persist only on clean exit; save now so the solver config
+                // (score mode etc.) survives even if the app dies mid-solve (e.g. a GPU reset).
+                Settings.Save();
+
                 ModuleCalcCancelTokenSource = new CancellationTokenSource();
                 ModuleCalcTask = Task.Factory.StartNew(() =>
                 {
@@ -648,7 +804,83 @@ namespace BPSR_ZDPS
                     ShouldBlockMainUI = false;
                 }, ModuleCalcCancelTokenSource.Token);
             }
-            ImGui.SetItemTooltip(AppStrings.GetLocalized("Module_CalculateButton_Tooltip"));
+            ModuleTooltip(AppStrings.GetLocalized("Module_CalculateButton_Tooltip"));
+        }
+
+        // Recomputes the combination-count estimate shown on the Calculate button, but only
+        // when a lightweight signature of its inputs changes (so we don't filter the whole
+        // inventory every frame). Only the GPU (exhaustive) backend enumerates every
+        // combination; the CPU beam search does not, so a "total combinations" figure would
+        // be misleading there and is hidden.
+        private static void RefreshComboCountEstimate()
+        {
+            var backend = Settings.Instance.WindowSettings.ModuleWindow.ComputeBackend;
+            var cfg = SolverConfig;
+            var lang = Settings.Instance.Language ?? "en";
+            var qualities = string.Join(',', cfg.QualitiesV2.Where(q => q.Value).Select(q => q.Key));
+            var prios = string.Join(',', cfg.StatPriorities.Select(p => p.Id));
+            var sig = $"{backend}|{cfg.NumModules}|{cfg.BruteForceAllModules}|{cfg.ModuleTotalCutoff}|{qualities}|{prios}|{NumTotalModules}|{lang}";
+            if (sig == ComboCountSig)
+            {
+                return;
+            }
+            ComboCountSig = sig;
+
+            if (backend != ComputeBackend.Gpu || PlayerModData?.ModulesPackage?.Items == null || PlayerModData.Mod == null)
+            {
+                ComboCountText = "";
+                return;
+            }
+
+            double combos = Managers.ModuleOptimizer.EstimateComboCount(cfg, PlayerModData);
+            ComboCountText = FormatComboCount(combos, lang);
+        }
+
+        // Compact, locale-aware combination count. CJK locales group by 4 digits (万/億/兆);
+        // others use SI suffixes (K/M/B/T). Counts too large to state usefully (e.g. 10 modules
+        // over a big inventory) collapse to a localized "huge" warning.
+        private static string FormatComboCount(double c, string lang)
+        {
+            if (c < 1d)
+            {
+                return "";
+            }
+
+            bool cjk = lang.StartsWith("ja") || lang.StartsWith("zh");
+            string num;
+            if (cjk)
+            {
+                if (c >= 1e16) return AppStrings.GetLocalized("Module_ComboCount_Huge");
+                if (c >= 1e12) num = (c / 1e12).ToString("0.#") + "兆";
+                else if (c >= 1e8) num = (c / 1e8).ToString("0.#") + "億";
+                else if (c >= 1e4) num = (c / 1e4).ToString("0.#") + "万";
+                else num = ((long)c).ToString("N0");
+            }
+            else
+            {
+                if (c >= 1e15) return AppStrings.GetLocalized("Module_ComboCount_Huge");
+                if (c >= 1e9) num = (c / 1e9).ToString("0.#") + "B";
+                else if (c >= 1e6) num = (c / 1e6).ToString("0.#") + "M";
+                else if (c >= 1e3) num = (c / 1e3).ToString("0.#") + "K";
+                else num = ((long)c).ToString("N0");
+            }
+
+            return string.Format(AppStrings.GetLocalized("Module_ComboCount"), num);
+        }
+
+        // Tooltip that wraps long lines at a fixed width instead of letting the tooltip
+        // window stretch arbitrarily wide (the default SetItemTooltip does not wrap, so a
+        // long unbroken localized string produced an oversized box). Used for every Module
+        // Optimizer tooltip.
+        private static void ModuleTooltip(string text)
+        {
+            if (ImGui.BeginItemTooltip())
+            {
+                ImGui.PushTextWrapPos(ImGui.GetFontSize() * 32f);
+                ImGui.TextUnformatted(text);
+                ImGui.PopTextWrapPos();
+                ImGui.EndTooltip();
+            }
         }
 
         private static (bool, bool) DrawStatFilter(int i)
@@ -701,27 +933,41 @@ namespace BPSR_ZDPS
             {
                 wasChanged = true;
             }
-            ImGui.SetItemTooltip("The minimum Link value needed for this stat to be considered.\nLeave 0 to use any Link.");
+            ModuleTooltip("The minimum Link value needed for this stat to be considered.\nLeave 0 to use any Link.");
             */
 
             if (ImGui.InputInt($"##ReqLevel{i}", ref SolverConfig.StatPriorities[i].ReqLevel, 0, ImGuiInputTextFlags.CharsDecimal))
             {
+                // >= 0: lower-bound requirement. -1..-6: upper-bound cap (see StatPrio).
+                SolverConfig.StatPriorities[i].ReqLevel = Math.Clamp(SolverConfig.StatPriorities[i].ReqLevel, -6, 20);
                 wasChanged = true;
             }
-            ImGui.SetItemTooltip(AppStrings.GetLocalized("Module_StatFilter_ReqLevel_Tooltip"));
+            ModuleTooltip(AppStrings.GetLocalized("Module_StatFilter_ReqLevel_Tooltip"));
 
             ImGui.SetCursorPos(pos + new Vector2(availSize.X - 50, 5));
             ImGui.Dummy(new Vector2(-4, 0));
             ImGui.SameLine();
+            // A negative ReqLevel is a cap; the A/E (Atleast/Exactly) mode has no meaning
+            // there, so show a cap indicator and disable the toggle.
+            bool capMode = SolverConfig.StatPriorities[i].ReqLevel < 0;
             bool isAtleastMode = SolverConfig.StatPriorities[i].StatMode == StatMode.Atleast;
-            if (ImGui.Button($"{(isAtleastMode ? "A" : "E")}##StatMode{i}"))
+            ImGui.BeginDisabled(capMode);
+            // Use only Latin-1 glyphs here: the default Segoe UI atlas has no U+2264.
+            string modeLabel = capMode
+                ? (SolverConfig.StatPriorities[i].ReqLevel == -6 ? "×" : "<")
+                : (isAtleastMode ? "A" : "E");
+            if (ImGui.Button($"{modeLabel}##StatMode{i}"))
             {
                 SolverConfig.StatPriorities[i].StatMode = isAtleastMode ? StatMode.Exactly : StatMode.Atleast;
                 wasChanged = true;
             }
-            ImGui.SetItemTooltip(isAtleastMode ?
-                AppStrings.GetLocalized("Module_StatFilter_Atleast_Tooltip") :
-                AppStrings.GetLocalized("Module_StatFilter_Exactly_Tooltip"));
+            ImGui.EndDisabled();
+            if (!capMode)
+            {
+                ModuleTooltip(isAtleastMode ?
+                    AppStrings.GetLocalized("Module_StatFilter_Atleast_Tooltip") :
+                    AppStrings.GetLocalized("Module_StatFilter_Exactly_Tooltip"));
+            }
 
             ImGui.SetCursorPos(pos + new Vector2(availSize.X - 25, 0));
             ImGui.PushFont(HelperMethods.Fonts["FASIcons"], 13.0f);
@@ -921,6 +1167,25 @@ namespace BPSR_ZDPS
                 LoadSavedModData(ModSavePath);
             }
 
+            if (ImGui.CollapsingHeader("Solver Fallback Conditions (legacy)", ImGuiTreeNodeFlags.DefaultOpen))
+            {
+                // Debug-only: restores the legacy automatic-fallback behavior that release
+                // builds no longer have (GPU failures stop the solve and show an error).
+                var allowFallback = Managers.ModuleOptimizer.DebugAllowCpuFallback;
+                if (ImGui.Checkbox("Auto CPU (beam) fallback on GPU failure", ref allowFallback))
+                {
+                    Managers.ModuleOptimizer.DebugAllowCpuFallback = allowFallback;
+                }
+
+                int budgetMillions = (int)(Managers.ModuleOptimizer.DebugMaxGpuCombos / 1_000_000);
+                ImGui.SetNextItemWidth(200);
+                if (ImGui.InputInt("GPU combo budget (millions, 0 = unlimited)", ref budgetMillions, 10))
+                {
+                    Managers.ModuleOptimizer.DebugMaxGpuCombos = Math.Max(0, budgetMillions) * 1_000_000L;
+                }
+                ImGui.TextDisabled("Above the budget the GPU solve throws NotSupportedException (legacy trigger was 50M).");
+            }
+
             if (ImGui.CollapsingHeader("Presets", ImGuiTreeNodeFlags.DefaultOpen))
             {
                 DrawDebugPreset("Dmg Stack 20 E, Crit 15 A",
@@ -958,6 +1223,8 @@ namespace BPSR_ZDPS
                 if (solverConfig.Verify(ModStatInfos))
                 {
                     SolverConfig = solverConfig;
+                    // Keep the saved settings pointing at the active config (see Apply preset).
+                    Settings.Instance.WindowSettings.ModuleWindow.LastUsedPreset.Config = solverConfig;
                 }
             }
 
@@ -1161,17 +1428,37 @@ namespace BPSR_ZDPS
             FilteredModules = [];
             BestModResults = [];
             IsCalculating = true;
+            CalcProgress = 0f;
+            LastSolveError = null;
 
             var modWindowSettings = Settings.Instance.WindowSettings.ModuleWindow;
             var solver = new ModuleOptimizer();
             ResultsPlayerModData = invToUse ?? PlayerModData;
-            // Always prefer the GPU; Solve falls back to the lightweight CPU beam search
-            // automatically when the GPU is unavailable (resets on app restart).
-            var results = solver.Solve(SolverConfig, ResultsPlayerModData, SolverModes.Gpu, ModuleCalcCancelTokenSource.Token);
 
-            FilteredModules = results.FilteredModules;
-            BestModResults = results.BestModResults;
-            LastSolveUsedCpuFallback = results.UsedCpuFallback;
+            // User-selected backend: exhaustive GPU search or the CPU beam search (approximate).
+            // A failure (GPU init/limits) stops the solve and is shown in the results panel.
+            var mode = modWindowSettings.ComputeBackend == ComputeBackend.Cpu ? SolverModes.NormalV2 : SolverModes.Gpu;
+
+            try
+            {
+                var results = solver.Solve(SolverConfig, ResultsPlayerModData, mode, ModuleCalcCancelTokenSource.Token, p => CalcProgress = p);
+
+                FilteredModules = results.FilteredModules;
+                BestModResults = results.BestModResults;
+                LastSolveUsedCpuFallback = results.UsedCpuFallback;
+                LastSolveFromCache = results.FromCache;
+                LastSolveCacheExact = results.CacheExact;
+            }
+            catch (OperationCanceledException)
+            {
+                BestModResults = null;
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Module solve failed.");
+                LastSolveError = ex.Message;
+                BestModResults = null;
+            }
 
             IsCalculating = false;
         }
@@ -1292,6 +1579,10 @@ namespace BPSR_ZDPS
 
     public class StatPrio
     {
+        // Sentinel returned by GetCap() when this priority has no upper-bound cap
+        // (ReqLevel >= 0). Chosen so the solvers' "total > cap" test is never true.
+        public const int NoCap = int.MaxValue;
+
         public StatPrio()
         {
 
@@ -1307,8 +1598,38 @@ namespace BPSR_ZDPS
 
         public int Id;
         public int MinLevel;
+        // >= 0: lower-bound requirement (the stat's summed link total must be at least
+        //       this, combined with StatMode Atleast/Exactly).
+        // < 0 : upper-bound cap. -1..-6 map to the link tiers 16/12/8/4/1/0; combos whose
+        //       total for this stat exceeds the cap are rejected (-6 => must not appear).
+        //       A/E (StatMode) is ignored in this mode.
         public int ReqLevel;
         public StatMode StatMode = StatMode.Atleast;
+
+        /// <summary>True when ReqLevel encodes an upper-bound cap (a negative value).</summary>
+        public bool HasCap => ReqLevel < 0;
+
+        /// <summary>
+        /// Upper bound on this stat's summed link total. ReqLevel -1..-6 map to the link
+        /// tiers 16/12/8/4/1/0; a cap of 0 (-6) means the stat must not appear at all.
+        /// Returns <see cref="NoCap"/> when ReqLevel >= 0 (no cap).
+        /// </summary>
+        public int GetCap() => ReqLevel switch
+        {
+            -1 => 16,
+            -2 => 12,
+            -3 => 8,
+            -4 => 4,
+            -5 => 1,
+            -6 => 0,
+            _ => NoCap,
+        };
+
+        /// <summary>
+        /// Lower-bound requirement level. A negative ReqLevel is a cap (upper bound) and so
+        /// imposes no lower bound: 0 there, the raw ReqLevel otherwise.
+        /// </summary>
+        public int GetLowerReq() => ReqLevel < 0 ? 0 : ReqLevel;
     }
 
     public class Preset
@@ -1322,6 +1643,13 @@ namespace BPSR_ZDPS
         public List<Preset> Presets = [];
         public SolverModes SolverMode = SolverModes.Normal;
         public Preset LastUsedPreset = new Preset();
+        // User-selected solver backend; there is no automatic fallback between them.
+        public ComputeBackend ComputeBackend = ComputeBackend.Gpu;
+        // GPU result cache: while the inventory / candidate set / set size are unchanged,
+        // solves re-score the cached candidate pool instead of re-enumerating C(N,K).
+        public bool UseBruteForceCache = true;
+        // Combos scoring more than this percent below the 10th-best are not pooled.
+        public int CacheThresholdPct = 20;
     }
 
     public enum SolverModes
@@ -1333,19 +1661,42 @@ namespace BPSR_ZDPS
         Gpu
     }
 
+    // Which hardware runs the module solver. Gpu = exhaustive DirectCompute search,
+    // Cpu = lightweight beam search (approximate).
+    public enum ComputeBackend
+    {
+        Gpu,
+        Cpu
+    }
+
     public enum ScoreMode
     {
         ZScore,
         CombatPower
     }
 
+    // ZScore scoring heuristic selection (does not affect the CombatPower score).
+    public enum ScoringModel
+    {
+        // This fork's tuned heuristic: no overcap reward (breakpoint-only, cap 20).
+        Enhanced,
+        // Upstream behavior: raw points past the snapped breakpoint are also added.
+        Original
+    }
+
     public class SolverResult
     {
         public List<ModComboResult> BestModResults = [];
         public List<long> FilteredModules = [];
-        // True when the GPU was unavailable and the lightweight CPU beam search
-        // produced these (approximate) results instead.
+        // True when the debug-only CPU fallback ran after a GPU failure and the
+        // lightweight beam search produced these (approximate) results instead.
         public bool UsedCpuFallback;
+        // True when these results were extracted from the brute-force pool cache
+        // instead of a full enumeration.
+        public bool FromCache;
+        // With FromCache: true when the scoring config matches the cache-building one
+        // (provably exact); false when only re-scored (may miss pruned combos).
+        public bool CacheExact;
     }
 
     public enum StatMode

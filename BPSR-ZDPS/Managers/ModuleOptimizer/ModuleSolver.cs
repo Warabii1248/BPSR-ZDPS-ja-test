@@ -19,6 +19,9 @@ namespace BPSR_ZDPS.Managers.Modules
         protected List<StatPrio> NormalizedStatPrios;
         protected Dictionary<int, int> PossibleStats = new(); // original stat id -> normalized index
 
+        /// <summary>Optional solve-progress sink (0..1); invoked from worker threads.</summary>
+        public Action<float>? ProgressCallback;
+
         public ModuleOptimizerBase(SolverConfig config, PlayerModDataSave playerMods, Stopwatch sw, List<long> filtered, CancellationToken cancelToken)
         {
             Config = config;

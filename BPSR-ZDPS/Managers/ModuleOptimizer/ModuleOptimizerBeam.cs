@@ -17,8 +17,12 @@ namespace BPSR_ZDPS.Managers
         private int[] LinkTotalFightLookup = [];
         private int MaxLinkTotal;
         private static readonly int[] EnhanceTiers = [1, 4, 8, 12, 16, 20];
+        // Score applied to a stat total that exceeds its upper-bound cap, so beam nodes
+        // that violate a cap sink far below any valid (capped) node.
+        private const int CapExceededPenalty = -1_000_000;
 
         private bool CombatMode => Config.ScoreMode == ScoreMode.CombatPower;
+        private bool OriginalScoring => Config.ScoringModel == ScoringModel.Original;
 
         public ModuleOptimizerBeam(SolverConfig config, PlayerModDataSave playerMods, Stopwatch sw, List<long> filtered, CancellationToken cancelToken) : base(config, playerMods, sw, filtered, cancelToken)
         {
@@ -30,7 +34,10 @@ namespace BPSR_ZDPS.Managers
 
         public override ModComboResult[] InnerSolve(Vector<byte>[] mods)
         {
-            StatIndexes = NormalizedStatPrios.Select(x => (byte)x.Id).ToArray();
+            // Distinctness is measured across every present stat lane. Restricting it to the
+            // priority lanes collapses all requirement-meeting results into one (their
+            // priority totals are identical), leaving a single result in the UI.
+            StatIndexes = PossibleStats.Values.Select(v => (byte)v).ToArray();
             BuildStatScoreLookup(NormalizedStatPrios);
             if (CombatMode)
             {
@@ -47,6 +54,10 @@ namespace BPSR_ZDPS.Managers
                 var candidates = new List<BeamNode>();
 
                 Log.Information($"Depth={i}, Beam={beam.Count}, EstimatedCandidates={beam.Count * mods.Length:N0}");
+
+                int depth = i;
+                int beamSize = beam.Count;
+                int processedNodes = 0;
 
                 Parallel.ForEach(beam,
                     () => new TopK(BeamWidth),
@@ -92,6 +103,14 @@ namespace BPSR_ZDPS.Managers
                                 return local;
                         }
 
+                        // Depth-weighted progress: each depth advances 1/numModules, filled by
+                        // the fraction of beam nodes expanded (throttled to every 64th node).
+                        var done = Interlocked.Increment(ref processedNodes);
+                        if ((done & 63) == 0 || done == beamSize)
+                        {
+                            ProgressCallback?.Invoke((depth + done / (float)beamSize) / numModules);
+                        }
+
                         return local;
                     },
                     local =>
@@ -114,7 +133,9 @@ namespace BPSR_ZDPS.Managers
             }
 
             var meetsRequirements = beam.Where(x => x.RequirementsMet == NormalizedStatPrios.Count);
-            var distinctTop = GetDistinctTopResults(meetsRequirements.DistinctBy(x => x.GetHash()), 10, 10);
+            // Threshold 1: only stat-profile duplicates collapse, so up to 10 results survive
+            // (a threshold of 10 used to merge every requirement-meeting set into one entry).
+            var distinctTop = GetDistinctTopResults(meetsRequirements.DistinctBy(x => x.GetHash()), 10, 1);
             var bestX = distinctTop.AsValueEnumerable()
                 .Select(x => BeamToResult(x))
                 .ToArray();
@@ -139,6 +160,30 @@ namespace BPSR_ZDPS.Managers
                     if (statPrio != null)
                     {
                         var prioPos = Config.StatPriorities.FindIndex(p => p.Id == origStatId);
+
+                        if (statPrio.HasCap)
+                        {
+                            // Upper-bound cap (negative ReqLevel; A/E ignored): score the stat
+                            // normally up to the cap, but once the total exceeds it mark the
+                            // requirement unmet and penalize so the beam steers toward capped
+                            // combos. Approximate — the GPU backend enforces the cap exactly.
+                            int cap = statPrio.GetCap();
+                            if (x <= cap)
+                            {
+                                StatScoreLookup[idx] = ScoreStatValue(origStatId, x, prioPos);
+                                RequirementMetLookup[idx] = 1;
+                                StatProgressLookup[idx] = 100;
+                            }
+                            else
+                            {
+                                StatScoreLookup[idx] = CapExceededPenalty;
+                                RequirementMetLookup[idx] = 0;
+                                StatProgressLookup[idx] = 0;
+                            }
+
+                            continue;
+                        }
+
                         var reqLevel = Math.Max((byte)0, statPrio.ReqLevel);
 
                         if (statPrio.StatMode == StatMode.Exactly)
@@ -187,7 +232,7 @@ namespace BPSR_ZDPS.Managers
                         RequirementMetLookup[idx] = 0;
                         StatProgressLookup[idx] = 0;
                     }
-                    else if (Config.ValueAllStats)
+                    else if (Config.ValueAllStats || Config.BruteForceAllModules)
                     {
                         var statMul = GetStatMul(-1);
                         var score = CalcScore(x, -1, -1, statMul);
@@ -246,15 +291,21 @@ namespace BPSR_ZDPS.Managers
 
         protected int CalcScore(int statValue, int statIdx, int numStats, float statMul)
         {
-            // Restored upstream formula: (breakpoint level x link bonus) weighted by
-            // legendary multiplier and priority-order boost, with raw points above the
-            // snapped breakpoint ("overcap") added unweighted.
+            // (breakpoint level x link bonus) weighted by legendary multiplier and priority-order boost.
             var breakPointBonus = GetLinkLevelBoost(statValue);
             var orderBoost = statIdx >= 0 ? GetOrderBoost(Config.OrderBoostStrength, statIdx, numStats) : 1f;
             var bpLevel = SnapToBreakPointLevel(statValue);
-            var leftOverPoints = statValue - bpLevel;
 
-            return (int)((bpLevel * breakPointBonus) * statMul * orderBoost + leftOverPoints);
+            if (OriginalScoring)
+            {
+                // Upstream: raw points above the snapped breakpoint ("overcap") added unweighted.
+                return (int)((bpLevel * breakPointBonus) * statMul * orderBoost + (statValue - bpLevel));
+            }
+
+            // Enhanced: points past the level-20 breakpoint have no in-game effect, so overcap
+            // is not rewarded: this favors reaching 20 on more stats over piling into one
+            // (e.g. 20/20/16 > 30/30).
+            return (int)((bpLevel * breakPointBonus) * statMul * orderBoost);
         }
 
         protected void ScoreBeamNode(ref BeamNode beamNode)
@@ -307,8 +358,7 @@ namespace BPSR_ZDPS.Managers
                 }
             }
             result.ModuleSet = ModuleSet.FromValues(vals);
-
-            result.Score = (int)beam.Score;
+            result.Score = beam.Score;
             return result;
         }
 
@@ -358,7 +408,10 @@ namespace BPSR_ZDPS.Managers
 
         protected static long CreatePriority(BeamNode x)
         {
-            return ((long)x.RequirementsMet << 48) | ((long)x.RequirementProgress << 32) | (uint)Math.Max(0, (int)(x.Score * 1000));
+            // Compute in long and clamp to uint before OR-ing into the low 32 bits: high
+            // LinkLevelBonus values can push Score*1000 past int range.
+            var scoreKey = (uint)Math.Clamp((long)x.Score * 1000L, 0L, uint.MaxValue);
+            return ((long)x.RequirementsMet << 48) | ((long)x.RequirementProgress << 32) | scoreKey;
         }
 
         protected List<BeamNode> GetDistinctTopResults(IEnumerable<BeamNode> candidates, int maxResults = 10, int minStatDifference = 10)
