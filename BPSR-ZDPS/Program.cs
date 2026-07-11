@@ -24,7 +24,16 @@ namespace BPSR_ZDPS
         public static D3D11Manager manager;
 
         static void Main(string[] args)
-        {            
+        {
+            // Hidden headless harness: compare GPU (exact) vs CPU beam (approximate) on real
+            // data, then exit before any GUI/GPU-render/network init. Usage:
+            //   BPSR-ZDPS.exe --verify-solver "<folder containing Data/>"
+            if (args.Length > 0 && args[0] == "--verify-solver")
+            {
+                Tools.SolverVerification.Run(args);
+                return;
+            }
+
             Settings.Load();
 
             var logBuilder = new LoggerConfiguration();
