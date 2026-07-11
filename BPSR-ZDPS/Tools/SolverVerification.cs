@@ -10,129 +10,331 @@ using System.Diagnostics;
 namespace BPSR_ZDPS.Tools
 {
     /// <summary>
-    /// Headless accuracy harness: runs the GPU (exhaustive/exact) and CPU beam (approximate)
-    /// backends over the SAME real inventory and configs, then reports the score gap.
-    /// Invoked from Program.Main via the hidden "--verify-solver &lt;dataRoot&gt;" argument.
-    /// The GPU pool cache is force-disabled so the GPU result is always a full enumeration
-    /// (= the true optimum) and thus a valid ground truth to score the beam against.
+    /// Headless accuracy/perf harness: runs the GPU (exhaustive/exact) and CPU beam
+    /// (approximate) backends over the SAME real inventory and reports the score gap
+    /// and timings. Invoked from Program.Main via the hidden "--verify-solver" argument:
+    ///
+    ///   BPSR-ZDPS.exe --verify-solver &lt;dataRoot&gt; [--truth file.json] [--mode both|cpu|gpu]
+    ///                 [--repeat N] [--json out.json] [--cases a,b,c]
+    ///
+    /// The GPU pool cache is force-disabled so a GPU run is always a full enumeration
+    /// (= the true optimum). With --truth, GPU ground truth is computed once and cached
+    /// to the file; later runs (e.g. --mode cpu while iterating on the beam) compare
+    /// against the cached truth without re-running the GPU.
     /// </summary>
     internal static class SolverVerification
     {
+        private class TruthEntry
+        {
+            public string ConfigSig = "";
+            public long InvHash;
+            public int BestScore;
+            public List<int> Top10 = new();
+            public string BestSetKey = "";
+            public double GpuSeconds;
+        }
+
+        private class CaseResult
+        {
+            public string Name = "";
+            public int GpuBest, BeamBest, Gap;
+            public double GapPct;
+            public double GpuSeconds, BeamSeconds;
+            public int Top10Overlap = -1;
+            public bool BeamBestInGpuTop10;
+            public bool GpuMatchesTruth = true;
+        }
+
         public static void Run(string[] args)
         {
-            string root = args.Length > 1 ? args[1] : Directory.GetCurrentDirectory();
+            string root = args.Length > 1 && !args[1].StartsWith("--") ? args[1] : Directory.GetCurrentDirectory();
+            string? truthPath = GetOpt(args, "--truth");
+            string mode = GetOpt(args, "--mode") ?? "both";      // both | cpu | gpu
+            int repeat = int.TryParse(GetOpt(args, "--repeat"), out var r) ? Math.Max(1, r) : 1;
+            string? jsonOut = GetOpt(args, "--json");
+            var onlyCases = (GetOpt(args, "--cases") ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries).ToHashSet();
 
-            Log.Logger = new LoggerConfiguration()
-                .MinimumLevel.Information()
-                .WriteTo.File(Path.Combine(root, "solver_verify_log.txt"))
-                .CreateLogger();
+            Log.Logger = new LoggerConfiguration().MinimumLevel.Warning().CreateLogger();
 
             Directory.SetCurrentDirectory(root);
-            Console.WriteLine($"[verify] data root = {root}");
+            Console.WriteLine($"[verify] data root = {root}   mode={mode} repeat={repeat}");
 
             Settings.Load();
             // Force exhaustive GPU (no pool cache) so GPU == true optimum.
             Settings.Instance.WindowSettings.ModuleWindow.UseBruteForceCache = false;
 
             LoadSolverTables();
-
             ModuleSolver.StatCombatScores = HelperMethods.DataTables.ModEffects.Data
                 .ToFrozenDictionary(x => $"{x.Value.EffectID}_{x.Value.EnhancementNum}", y => y.Value.FightValue);
 
-            var modJson = File.ReadAllText(Path.Combine(Utils.DATA_DIR_NAME, "ModulesSaveData.json"));
-            var mods = JsonConvert.DeserializeObject<PlayerModDataSave>(modJson);
-            int owned = mods?.ModulesPackage?.Items?.Count ?? 0;
-            Console.WriteLine($"[verify] owned modules = {owned}");
-            Console.WriteLine($"[verify] beam width = {new ModuleOptimizerBeam(new SolverConfig(), mods, new Stopwatch(), new List<long>(), default).BeamWidth}");
-            Console.WriteLine();
+            var mods = JsonConvert.DeserializeObject<PlayerModDataSave>(
+                File.ReadAllText(Path.Combine(Utils.DATA_DIR_NAME, "ModulesSaveData.json")))!;
+            long invHash = InventoryHash(mods);
+            Console.WriteLine($"[verify] owned modules = {mods.ModulesPackage?.Items?.Count ?? 0}   invHash={invHash:X}");
 
+            var truth = LoadTruth(truthPath);
             var real = Settings.Instance.WindowSettings.ModuleWindow.LastUsedPreset.Config;
+            var cases = BuildCases(real);
 
-            var cases = new List<(string name, SolverConfig cfg, int k)>
+            var results = new List<CaseResult>();
+            foreach (var (name, cfg) in cases)
             {
-                ("Real preset (as saved)",                          real,                    real.NumModules),
-                ("Combat / brute-force-all / no priorities, K=5",   CombatBrute(real),       5),
-                ("Combat / brute-force-all / no priorities, K=4",   CombatBrute(real),       4),
-                ("ZScore(Enhanced) / 3 priorities Atleast, K=5",    ZScorePrio(real),        5),
-                ("ZScore(Enhanced) / priorities + cap(-3), K=5",    ZScoreCap(real),         5),
-            };
-
-            foreach (var (name, cfg, k) in cases)
-            {
-                RunOne(name, cfg, k, mods);
+                if (onlyCases.Count > 0 && !onlyCases.Contains(name)) continue;
+                var res = RunOne(name, cfg, mods, invHash, truth, truthPath, mode, repeat);
+                if (res != null) results.Add(res);
             }
 
+            Console.WriteLine(new string('=', 100));
+            Console.WriteLine($"{"CASE",-28} {"GPUbest",8} {"BEAMbest",8} {"GAP",6} {"GAP%",8} {"ovl",5} {"GPU s",8} {"BEAM s",8}");
+            foreach (var s in results)
+            {
+                Console.WriteLine($"{s.Name,-28} {s.GpuBest,8} {s.BeamBest,8} {s.Gap,6} {s.GapPct,7:F3}% {(s.Top10Overlap >= 0 ? s.Top10Overlap + "/10" : "-"),5} {s.GpuSeconds,8:F2} {s.BeamSeconds,8:F2}{(s.GpuMatchesTruth ? "" : "  ** GPU!=TRUTH **")}");
+            }
+            int misses = results.Count(x => x.Gap > 0);
+            Console.WriteLine($"[verify] beam misses: {misses}/{results.Count}   total gap: {results.Sum(x => x.Gap)}   GPU exactness: {(results.All(x => x.GpuMatchesTruth) ? "OK" : "FAILED")}");
+
+            if (jsonOut != null)
+            {
+                File.WriteAllText(jsonOut, JsonConvert.SerializeObject(results, Formatting.Indented));
+                Console.WriteLine($"[verify] json -> {jsonOut}");
+            }
             Console.WriteLine("[verify] done.");
         }
 
-        private static void RunOne(string name, SolverConfig baseCfg, int k, PlayerModDataSave mods)
+        private static CaseResult? RunOne(string name, SolverConfig cfg, PlayerModDataSave mods, long invHash,
+            Dictionary<string, TruthEntry> truth, string? truthPath, string mode, int repeat)
         {
-            var cfg = baseCfg.Clone();
-            cfg.NumModules = k;
+            string sig = ConfigSig(cfg);
+            double estCombos = ModuleOptimizer.EstimateComboCount(cfg, mods);
 
-            Console.WriteLine(new string('=', 78));
-            Console.WriteLine($"CASE: {name}");
-            Console.WriteLine($"  ScoreMode={cfg.ScoreMode}  ScoringModel={cfg.ScoringModel}  BruteForceAll={cfg.BruteForceAllModules}  Cutoff={cfg.ModuleTotalCutoff}  K={cfg.NumModules}");
-            Console.WriteLine($"  Priorities=[{string.Join(", ", cfg.StatPriorities.Select(p => $"{p.Id}:{(p.HasCap ? $"cap{p.ReqLevel}(<={p.GetCap()})" : $"{(p.StatMode == StatMode.Exactly ? "=" : ">=")}{p.ReqLevel}")}"))}]");
+            Console.WriteLine(new string('=', 100));
+            Console.WriteLine($"CASE: {name}   K={cfg.NumModules}  ~{estCombos:E2} combos  [{DescribeGates(cfg)}]");
 
             var solver = new ModuleOptimizer();
+            var res = new CaseResult { Name = name };
 
-            SolverResult gpu, beam;
-            var swG = Stopwatch.StartNew();
-            try { gpu = solver.Solve(cfg, mods, SolverModes.Gpu, CancellationToken.None); }
-            catch (Exception ex) { Console.WriteLine($"  GPU FAILED: {ex.Message}\n"); return; }
-            swG.Stop();
+            // ---- GPU (exact) or cached truth ----
+            TruthEntry? te = truth.TryGetValue(name, out var t) && t.ConfigSig == sig && t.InvHash == invHash ? t : null;
+            SolverResult? gpu = null;
 
-            var swB = Stopwatch.StartNew();
-            try { beam = solver.Solve(cfg, mods, SolverModes.NormalV2, CancellationToken.None); }
-            catch (Exception ex) { Console.WriteLine($"  BEAM FAILED: {ex.Message}\n"); return; }
-            swB.Stop();
-
-            var gpuList = (gpu.BestModResults ?? new()).OrderByDescending(r => r.Score).ToList();
-            var beamList = (beam.BestModResults ?? new()).OrderByDescending(r => r.Score).ToList();
-
-            int nGpu = gpu.FilteredModules?.Count ?? 0;
-            int nBeam = beam.FilteredModules?.Count ?? 0;
-
-            Console.WriteLine($"  Candidates: GPU N={nGpu}  Beam N={nBeam}   (C(N,K) exhaustive on GPU)");
-            Console.WriteLine($"  Time: GPU {swG.Elapsed.TotalSeconds:F1}s   Beam {swB.Elapsed.TotalSeconds:F2}s");
-
-            if (gpuList.Count == 0 || beamList.Count == 0)
+            if (mode != "cpu" || te == null)
             {
-                Console.WriteLine($"  RESULTS: GPU={gpuList.Count} beam={beamList.Count} (no comparable results)\n");
-                return;
+                if (estCombos > 2.0e11)
+                {
+                    Console.WriteLine($"  SKIP: {estCombos:E2} combos too large for exhaustive ground truth.");
+                    return null;
+                }
+                var swG = Stopwatch.StartNew();
+                try { gpu = solver.Solve(cfg, mods, SolverModes.Gpu, CancellationToken.None); }
+                catch (Exception ex) { Console.WriteLine($"  GPU FAILED: {ex.Message}"); return null; }
+                swG.Stop();
+                res.GpuSeconds = swG.Elapsed.TotalSeconds;
+
+                var gl = gpu.BestModResults.OrderByDescending(x => x.Score).ToList();
+                if (gl.Count == 0) { Console.WriteLine("  GPU: no results"); return null; }
+
+                var freshTruth = new TruthEntry
+                {
+                    ConfigSig = sig,
+                    InvHash = invHash,
+                    BestScore = gl[0].Score,
+                    Top10 = gl.Take(10).Select(x => x.Score).ToList(),
+                    BestSetKey = SetKey(gl[0], gpu.FilteredModules),
+                    GpuSeconds = res.GpuSeconds,
+                };
+
+                if (te != null)
+                {
+                    // Truth existed: verify the (possibly modified) GPU backend is still exact.
+                    res.GpuMatchesTruth = te.BestScore == freshTruth.BestScore && te.Top10.SequenceEqual(freshTruth.Top10);
+                    if (!res.GpuMatchesTruth)
+                        Console.WriteLine($"  !!! GPU DIVERGED FROM TRUTH: best {freshTruth.BestScore} vs truth {te.BestScore}");
+                }
+                te = res.GpuMatchesTruth ? (truth.TryGetValue(name, out var keep) && keep.ConfigSig == sig ? keep : freshTruth) : freshTruth;
+                truth[name] = te;
+                SaveTruth(truthPath, truth);
+            }
+            else
+            {
+                res.GpuSeconds = te.GpuSeconds;
+                Console.WriteLine($"  GPU: using cached truth (best={te.BestScore})");
             }
 
-            int gpuBest = gpuList[0].Score;
-            int beamBest = beamList[0].Score;
-            int gap = gpuBest - beamBest;
-            double gapPct = gpuBest != 0 ? 100.0 * gap / Math.Abs(gpuBest) : 0;
+            res.GpuBest = te!.BestScore;
 
-            // Canonical, backend-independent combat power of each backend's chosen best set.
-            int gpuBestCombat = gpuList[0].CombatScore;
-            int beamBestCombat = beamList[0].CombatScore;
+            if (mode == "gpu")
+            {
+                Console.WriteLine($"  GPU best={res.GpuBest}  time={res.GpuSeconds:F2}s  exact={(res.GpuMatchesTruth ? "OK" : "DIVERGED")}");
+                return res;
+            }
 
-            Console.WriteLine($"  --- Score (optimized metric, identical formula both backends) ---");
-            Console.WriteLine($"    GPU  best = {gpuBest}   top10 = [{string.Join(", ", gpuList.Take(10).Select(r => r.Score))}]");
-            Console.WriteLine($"    Beam best = {beamBest}   top10 = [{string.Join(", ", beamList.Take(10).Select(r => r.Score))}]");
-            Console.WriteLine($"    GAP = {gap}  ({gapPct:F3}% below optimum)  {(gap == 0 ? "<-- beam found the optimum" : gap > 0 ? "<-- beam SUBOPTIMAL" : "<-- beam ABOVE gpu?! (check)")}");
-            Console.WriteLine($"  --- Canonical CombatScore of each best set ---");
-            Console.WriteLine($"    GPU={gpuBestCombat}  Beam={beamBestCombat}  gap={gpuBestCombat - beamBestCombat}");
+            // ---- CPU beam (median of N repeats) ----
+            SolverResult? beam = null;
+            var times = new List<double>();
+            for (int i = 0; i < repeat; i++)
+            {
+                var swB = Stopwatch.StartNew();
+                try { beam = solver.Solve(cfg, mods, SolverModes.NormalV2, CancellationToken.None); }
+                catch (Exception ex) { Console.WriteLine($"  BEAM FAILED: {ex.Message}"); return null; }
+                swB.Stop();
+                times.Add(swB.Elapsed.TotalSeconds);
+            }
+            times.Sort();
+            res.BeamSeconds = times[times.Count / 2];
 
-            // Set-level overlap via global module ids.
-            var gpuKeys = gpuList.Select(r => SetKey(r, gpu.FilteredModules)).ToList();
-            var beamKeys = beamList.Select(r => SetKey(r, beam.FilteredModules)).ToList();
-            var gpuTop10Set = gpuKeys.Take(10).ToHashSet();
-            int overlap = beamKeys.Take(10).Count(gpuTop10Set.Contains);
-            bool beamBestInGpuTop10 = gpuTop10Set.Contains(beamKeys[0]);
+            var bl = beam!.BestModResults.OrderByDescending(x => x.Score).ToList();
+            if (bl.Count == 0) { Console.WriteLine("  BEAM: no results"); res.BeamBest = 0; res.Gap = res.GpuBest; res.GapPct = 100; return res; }
 
-            Console.WriteLine($"  --- Set identity (global module ids) ---");
-            Console.WriteLine($"    beam best set == a GPU top-10 set: {beamBestInGpuTop10}");
-            Console.WriteLine($"    top-10 set overlap: {overlap}/10");
-            Console.WriteLine();
+            res.BeamBest = bl[0].Score;
+            res.Gap = res.GpuBest - res.BeamBest;
+            res.GapPct = res.GpuBest != 0 ? 100.0 * res.Gap / Math.Abs(res.GpuBest) : 0;
+
+            if (gpu != null)
+            {
+                var gl = gpu.BestModResults.OrderByDescending(x => x.Score).ToList();
+                var gpuTop = gl.Take(10).Select(x => SetKey(x, gpu.FilteredModules)).ToHashSet();
+                var beamKeys = bl.Take(10).Select(x => SetKey(x, beam.FilteredModules)).ToList();
+                res.Top10Overlap = beamKeys.Count(gpuTop.Contains);
+                res.BeamBestInGpuTop10 = gpuTop.Contains(beamKeys[0]);
+            }
+
+            Console.WriteLine($"  GPU best={res.GpuBest} ({res.GpuSeconds:F2}s)   BEAM best={res.BeamBest} ({res.BeamSeconds:F2}s median of {repeat})");
+            Console.WriteLine($"  GAP = {res.Gap} ({res.GapPct:F3}%)  {(res.Gap == 0 ? "OK: beam optimal" : res.Gap > 0 ? "beam SUBOPTIMAL" : "beam>gpu ?! CHECK")}   beam top10=[{string.Join(",", bl.Take(10).Select(x => x.Score))}]");
+            return res;
         }
 
-        /// <summary>Sorted global-module-id signature of a result's chosen set (local idx -> filtered[idx]).</summary>
+        // ---- case definitions ----
+
+        private static List<(string, SolverConfig)> BuildCases(SolverConfig real)
+        {
+            var list = new List<(string, SolverConfig)>();
+
+            list.Add(("real-preset", real.Clone()));
+
+            list.Add(("exactly2-combat", Mut(real, c =>
+            {
+                c.BruteForceAllModules = true; c.ScoreMode = ScoreMode.CombatPower; c.NumModules = 5;
+                c.StatPriorities = new List<StatPrio>
+                {
+                    new StatPrio(2104, 0, 20, StatMode.Exactly),
+                    new StatPrio(1112, 0, 16, StatMode.Exactly),
+                    new StatPrio(1410, 0, 12, StatMode.Atleast),
+                };
+            })));
+
+            list.Add(("caps-zscore", Mut(real, c =>
+            {
+                c.BruteForceAllModules = false; c.ScoreMode = ScoreMode.ZScore; c.ScoringModel = ScoringModel.Enhanced; c.NumModules = 5;
+                c.StatPriorities = new List<StatPrio>
+                {
+                    new StatPrio(1112, 0, 16, StatMode.Atleast),
+                    new StatPrio(1110, 0, -2, StatMode.Atleast),
+                    new StatPrio(1407, 0, -3, StatMode.Atleast),
+                };
+            })));
+
+            list.Add(("exclude-zscore", Mut(real, c =>
+            {
+                c.BruteForceAllModules = false; c.ScoreMode = ScoreMode.ZScore; c.ScoringModel = ScoringModel.Enhanced; c.NumModules = 5;
+                c.StatPriorities = new List<StatPrio>
+                {
+                    new StatPrio(2104, 0, 12, StatMode.Atleast),
+                    new StatPrio(1112, 0, 8, StatMode.Atleast),
+                    new StatPrio(1110, 0, -6, StatMode.Atleast),
+                };
+            })));
+
+            list.Add(("nogate-combat-k5", Mut(real, c =>
+            {
+                c.BruteForceAllModules = true; c.ScoreMode = ScoreMode.CombatPower; c.NumModules = 5;
+                c.StatPriorities = new List<StatPrio>();
+            })));
+
+            list.Add(("zscore-prios-k5", Mut(real, c =>
+            {
+                c.BruteForceAllModules = false; c.ScoreMode = ScoreMode.ZScore; c.ScoringModel = ScoringModel.Enhanced; c.NumModules = 5;
+                c.StatPriorities = new List<StatPrio>
+                {
+                    new StatPrio(2104, 0, 12, StatMode.Atleast),
+                    new StatPrio(1112, 0, 8, StatMode.Atleast),
+                    new StatPrio(1407, 0, 8, StatMode.Atleast),
+                };
+            })));
+
+            list.Add(("zscore-original-k5", Mut(real, c =>
+            {
+                c.BruteForceAllModules = false; c.ScoreMode = ScoreMode.ZScore; c.ScoringModel = ScoringModel.Original; c.NumModules = 5;
+                c.StatPriorities = new List<StatPrio>
+                {
+                    new StatPrio(2104, 0, 12, StatMode.Atleast),
+                    new StatPrio(1112, 0, 8, StatMode.Atleast),
+                    new StatPrio(1407, 0, 8, StatMode.Atleast),
+                };
+            })));
+
+            // Higher K with a tight cutoff to keep exhaustive ground truth feasible.
+            list.Add(("gates-combat-k6-cut14", Mut(real, c =>
+            {
+                c.BruteForceAllModules = true; c.ScoreMode = ScoreMode.CombatPower; c.NumModules = 6; c.ModuleTotalCutoff = 14;
+                c.StatPriorities = new List<StatPrio>
+                {
+                    new StatPrio(2104, 0, 20, StatMode.Exactly),
+                    new StatPrio(1112, 0, 16, StatMode.Atleast),
+                    new StatPrio(1110, 0, -2, StatMode.Atleast),
+                };
+            })));
+
+            return list;
+        }
+
+        private static SolverConfig Mut(SolverConfig baseCfg, Action<SolverConfig> mutate)
+        {
+            var c = baseCfg.Clone();
+            // Clone() shares the StatPriorities list reference; replace it before mutating.
+            c.StatPriorities = baseCfg.StatPriorities.ToList();
+            mutate(c);
+            return c;
+        }
+
+        // ---- helpers ----
+
+        private static string? GetOpt(string[] args, string name)
+        {
+            for (int i = 0; i < args.Length - 1; i++)
+                if (args[i] == name) return args[i + 1];
+            return null;
+        }
+
+        private static string DescribeGates(SolverConfig c) =>
+            $"{c.ScoreMode}/{c.ScoringModel}/brute={c.BruteForceAllModules}/cut={c.ModuleTotalCutoff} " +
+            string.Join(", ", c.StatPriorities.Select(p => $"{p.Id}:{(p.HasCap ? $"<= {p.GetCap()}" : $"{(p.StatMode == StatMode.Exactly ? "=" : ">=")}{p.ReqLevel}")}"));
+
+        private static string ConfigSig(SolverConfig c) =>
+            JsonConvert.SerializeObject(new
+            {
+                c.NumModules, c.ScoreMode, c.ScoringModel, c.BruteForceAllModules, c.ModuleTotalCutoff,
+                c.ValueAllStats, c.OrderBoostStrength, c.LegendaryStatMultiplier,
+                Q = c.QualitiesV2.OrderBy(x => x.Key).Select(x => $"{x.Key}:{x.Value}"),
+                P = c.StatPriorities.Select(p => $"{p.Id}/{p.ReqLevel}/{(int)p.StatMode}"),
+                L = Convert.ToBase64String(c.LinkLevelBonus),
+            });
+
+        private static long InventoryHash(PlayerModDataSave mods)
+        {
+            unchecked
+            {
+                long h = 1469598103934665603L;
+                foreach (var kv in mods.ModulesPackage!.Items.OrderBy(x => x.Key))
+                {
+                    h = (h ^ kv.Key) * 1099511628211L;
+                    h = (h ^ kv.Value.ConfigId) * 1099511628211L;
+                    if (mods.Mod!.ModInfos.TryGetValue(kv.Key, out var info))
+                        foreach (var l in info.InitLinkNums) h = (h ^ l) * 1099511628211L;
+                }
+                return h;
+            }
+        }
+
         private static string SetKey(ModComboResult r, List<long> filtered)
         {
             var ids = r.ModuleSet.Mods.Where(x => x >= 0 && x < filtered.Count)
@@ -140,56 +342,28 @@ namespace BPSR_ZDPS.Tools
             return string.Join(",", ids);
         }
 
-        // ---- config builders (do not mutate the caller's config) ----
-
-        private static SolverConfig CombatBrute(SolverConfig real)
+        private static Dictionary<string, TruthEntry> LoadTruth(string? path)
         {
-            var c = real.Clone();
-            c.StatPriorities = new List<StatPrio>();
-            c.BruteForceAllModules = true;
-            c.ScoreMode = ScoreMode.CombatPower;
-            return c;
+            if (path == null || !File.Exists(path)) return new();
+            try { return JsonConvert.DeserializeObject<Dictionary<string, TruthEntry>>(File.ReadAllText(path)) ?? new(); }
+            catch { return new(); }
         }
 
-        private static SolverConfig ZScorePrio(SolverConfig real)
+        private static void SaveTruth(string? path, Dictionary<string, TruthEntry> truth)
         {
-            var c = real.Clone();
-            c.BruteForceAllModules = false;
-            c.ScoreMode = ScoreMode.ZScore;
-            c.ScoringModel = ScoringModel.Enhanced;
-            c.ValueAllStats = true;
-            c.StatPriorities = new List<StatPrio>
-            {
-                new StatPrio(2104, 0, 12, StatMode.Atleast),
-                new StatPrio(1112, 0, 8,  StatMode.Atleast),
-                new StatPrio(1407, 0, 8,  StatMode.Atleast),
-            };
-            return c;
-        }
-
-        private static SolverConfig ZScoreCap(SolverConfig real)
-        {
-            var c = ZScorePrio(real);
-            // Cap the third priority at tier 8 (ReqLevel -3): GPU enforces exactly, beam approximates.
-            c.StatPriorities = new List<StatPrio>
-            {
-                new StatPrio(2104, 0, 12, StatMode.Atleast),
-                new StatPrio(1112, 0, 8,  StatMode.Atleast),
-                new StatPrio(1407, 0, -3, StatMode.Atleast),
-            };
-            return c;
+            if (path == null) return;
+            File.WriteAllText(path, JsonConvert.SerializeObject(truth, Formatting.Indented));
         }
 
         private static void LoadSolverTables()
         {
             string dir = Utils.DATA_DIR_NAME;
             HelperMethods.DataTables.Modules.Data =
-                JsonConvert.DeserializeObject<Dictionary<int, ModuleData>>(File.ReadAllText(Path.Combine(dir, "ModTable.json")));
+                JsonConvert.DeserializeObject<Dictionary<int, ModuleData>>(File.ReadAllText(Path.Combine(dir, "ModTable.json")))!;
             HelperMethods.DataTables.ModEffects.Data =
-                JsonConvert.DeserializeObject<Dictionary<int, EffectData>>(File.ReadAllText(Path.Combine(dir, "ModEffectTable.json")));
+                JsonConvert.DeserializeObject<Dictionary<int, EffectData>>(File.ReadAllText(Path.Combine(dir, "ModEffectTable.json")))!;
             HelperMethods.DataTables.ModLinkEffects.Data =
-                JsonConvert.DeserializeObject<Dictionary<int, ModLinkEffect>>(File.ReadAllText(Path.Combine(dir, "ModLinkEffectTable.json")));
-            Console.WriteLine($"[verify] tables: Modules={HelperMethods.DataTables.Modules.Data.Count} ModEffects={HelperMethods.DataTables.ModEffects.Data.Count} ModLinkEffects={HelperMethods.DataTables.ModLinkEffects.Data.Count}");
+                JsonConvert.DeserializeObject<Dictionary<int, ModLinkEffect>>(File.ReadAllText(Path.Combine(dir, "ModLinkEffectTable.json")))!;
         }
     }
 }
