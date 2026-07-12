@@ -1,8 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(dir \"c:\\\\Users\\\\mlwl1\\\\Documents\\\\GitHub\\\\BPSR-ZDPS\\\\BPSR-ZDPS\\\\bin\\\\Debug\\\\net9.0\")",
-      "Bash(gh release *)"
-    ]
-  }
-}

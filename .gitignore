@@ -362,3 +362,5 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+# Machine-specific Claude Code permissions (paths contain the local user name)
+.claude/settings.json
