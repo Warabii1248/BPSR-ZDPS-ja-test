@@ -364,3 +364,6 @@ MigrationBackup/
 FodyWeavers.xsd
 # Machine-specific Claude Code permissions (paths contain the local user name)
 .claude/settings.json
+
+# Release exe exceeds GitHub's 100MB push limit; only the zip is tracked
+ZDPS_UpdatePackage/BPSR-ZDPS.exe
