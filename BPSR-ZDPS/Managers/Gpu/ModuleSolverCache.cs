@@ -119,19 +119,30 @@ namespace BPSR_ZDPS.Managers
         /// benefit from higher totals; it is skipped for Exactly gates or non-monotone
         /// custom link bonuses.
         /// </summary>
-        private static List<long> PrepareCandidates(SolverConfig config, PlayerModDataSave playerMods, List<long> filtered)
+        private static List<long> PrepareCandidates(SolverConfig config, PlayerModDataSave playerMods, List<long> filtered, bool forPoolCache = false)
         {
             int k = Math.Clamp(config.NumModules, 1, ModuleSet.MaxModules);
             var limited = Modules.ModuleOptimizerBase.LimitDuplicates(playerMods, filtered, k);
-            var reduced = FilterDominated(config, playerMods, limited, k);
+            var reduced = FilterDominated(config, playerMods, limited, k, forPoolCache);
             Log.Information("Candidate prep: {Raw} raw -> {Limited} deduped -> {Final} after dominance filter",
                 filtered.Count, limited.Count, reduced.Count);
             return reduced;
         }
 
-        private static List<long> FilterDominated(SolverConfig config, PlayerModDataSave playerMods, List<long> filtered, int k)
+        private static List<long> FilterDominated(SolverConfig config, PlayerModDataSave playerMods, List<long> filtered, int k, bool forPoolCache)
         {
             if (filtered.Count <= k)
+            {
+                return filtered;
+            }
+
+            // With the pool cache active the candidate list must not depend on the gate
+            // config: dominance runs for plain configs but is skipped for cap/Exactly ones,
+            // so the lists would differ and every gate tweak would miss on FilteredIds.
+            // Skipping it up front keeps one stable list (and a pool that also covers the
+            // dominated modules a later cap/Exactly query may need) at the cost of a
+            // slightly larger one-time full solve.
+            if (forPoolCache)
             {
                 return filtered;
             }
@@ -370,14 +381,12 @@ namespace BPSR_ZDPS.Managers
                 return CloneResult(memo.Result, exact: true);
             }
 
-            // Upper-bound caps remove exactly the high-scoring combos the pool threshold was
-            // derived from, so the pooled top-10 can silently miss the true best. Fall back to
-            // a full (shader-gated, exact) solve; identical repeats are served by the memo above.
-            if (config.StatPriorities.Any(p => p.HasCap))
-            {
-                return null;
-            }
-
+            // Upper-bound caps (negative ReqLevel) ride the same guarantees as lower-bound
+            // gate changes: they only FILTER (compliant combos score identically), GatesPass
+            // re-applies them during extraction, and the <10-results fallback below catches
+            // pools whose threshold cut away the capped optimum. A -6 exclusion shrinks the
+            // candidate set, so it naturally misses on FilteredIds and full-solves once per
+            // exclusion combination (like any candidate-set change).
             if (cache == null || cache.K != k || cache.InventoryHash != invHash
                 || cache.FilteredIds.Length != filtered.Count)
             {

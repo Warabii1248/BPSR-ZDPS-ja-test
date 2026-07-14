@@ -1,4 +1,5 @@
-﻿using BPSR_ZDPS.DataTypes.Modules;
+﻿using BPSR_ZDPS.DataTypes;
+using BPSR_ZDPS.DataTypes.Modules;
 using Serilog;
 using System.Diagnostics;
 using System.Numerics;
@@ -41,7 +42,10 @@ namespace BPSR_ZDPS.Managers
             }
             else if (mode == SolverModes.Gpu)
             {
-                filtered = PrepareCandidates(config, playerMods, filtered);
+                // With the pool cache on, keep the candidate list gate-independent (no
+                // dominance filter) so the pool survives cap/Exactly/requirement tweaks.
+                filtered = PrepareCandidates(config, playerMods, filtered,
+                    forPoolCache: Settings.Instance.WindowSettings.ModuleWindow.UseBruteForceCache);
 
                 // No automatic fallback: a GPU failure propagates to the caller, which reports
                 // it and stops. The legacy fallback survives only behind the debug-tab flag.

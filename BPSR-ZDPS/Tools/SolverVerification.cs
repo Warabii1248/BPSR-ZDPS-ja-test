@@ -74,6 +74,13 @@ namespace BPSR_ZDPS.Tools
 
             var truth = LoadTruth(truthPath);
             var real = Settings.Instance.WindowSettings.ModuleWindow.LastUsedPreset.Config;
+
+            if (mode == "cache")
+            {
+                RunCacheChecks(mods, real);
+                return;
+            }
+
             var cases = BuildCases(real);
 
             var results = new List<CaseResult>();
@@ -201,6 +208,91 @@ namespace BPSR_ZDPS.Tools
             Console.WriteLine($"  GPU best={res.GpuBest} ({res.GpuSeconds:F2}s)   BEAM best={res.BeamBest} ({res.BeamSeconds:F2}s median of {repeat})");
             Console.WriteLine($"  GAP = {res.Gap} ({res.GapPct:F3}%)  {(res.Gap == 0 ? "OK: beam optimal" : res.Gap > 0 ? "beam SUBOPTIMAL" : "beam>gpu ?! CHECK")}   beam top10=[{string.Join(",", bl.Take(10).Select(x => x.Score))}]");
             return res;
+        }
+
+        // ---- cache checks (--mode cache) ----
+
+        /// <summary>
+        /// Verifies pool-cache extraction under cap gates: a BASE config full-solves with
+        /// the cache enabled (building the pool), then a VARIATION (cap added/changed) is
+        /// solved twice - once answered by the cache, once cache-disabled (exact ground
+        /// truth) - and the top-10 score lists must match exactly whenever the cache path
+        /// claims exactness. Also reports whether the pool was actually used vs fell back.
+        /// </summary>
+        private static void RunCacheChecks(PlayerModDataSave mods, SolverConfig real)
+        {
+            // Pool store/overflow outcomes log at Information; surface them here so a
+            // "FromCache=False" line can be told apart (overflowed vs threshold miss).
+            Log.Logger = new LoggerConfiguration().MinimumLevel.Information().WriteTo.Console().CreateLogger();
+            Settings.Instance.WindowSettings.ModuleWindow.CacheThresholdPct = 20;
+            var solver = new ModuleOptimizer();
+
+            // Fresh StatPrio instances everywhere: configs share nothing mutable.
+            SolverConfig ZBase() => Mut(real, c =>
+            {
+                c.BruteForceAllModules = false; c.ScoreMode = ScoreMode.ZScore; c.ScoringModel = ScoringModel.Enhanced; c.NumModules = 5;
+                c.StatPriorities = new List<StatPrio>
+                {
+                    new StatPrio(2104, 0, 12, StatMode.Atleast),
+                    new StatPrio(1112, 0, 8, StatMode.Atleast),
+                    new StatPrio(1407, 0, 8, StatMode.Atleast),
+                };
+            });
+            SolverConfig CBase() => Mut(real, c =>
+            {
+                c.BruteForceAllModules = true; c.ScoreMode = ScoreMode.CombatPower; c.NumModules = 6; c.ModuleTotalCutoff = 14;
+                c.StatPriorities = new List<StatPrio>
+                {
+                    new StatPrio(2104, 0, 20, StatMode.Exactly),
+                    new StatPrio(1112, 0, 16, StatMode.Atleast),
+                    new StatPrio(1110, 0, 0, StatMode.Atleast),
+                };
+            });
+
+            var checks = new List<(string name, SolverConfig baseCfg, SolverConfig varCfg)>
+            {
+                ("zscore: cap -3 on 1407",      ZBase(), Mut(ZBase(), c => c.StatPriorities[2] = new StatPrio(1407, 0, -3, StatMode.Atleast))),
+                ("zscore: cap -2 on 1407",      ZBase(), Mut(ZBase(), c => c.StatPriorities[2] = new StatPrio(1407, 0, -2, StatMode.Atleast))),
+                ("combat k6: cap -2 on 1110",   CBase(), Mut(CBase(), c => c.StatPriorities[2] = new StatPrio(1110, 0, -2, StatMode.Atleast))),
+                ("zscore: exclude -6 on 1110",  ZBase(), Mut(ZBase(), c => c.StatPriorities.Add(new StatPrio(1110, 0, -6, StatMode.Atleast)))),
+            };
+
+            int failures = 0;
+            foreach (var (name, baseCfg, varCfg) in checks)
+            {
+                Console.WriteLine(new string('=', 100));
+                Console.WriteLine($"CACHE CHECK: {name}");
+
+                // Exact ground truth for the variation (cache off).
+                Settings.Instance.WindowSettings.ModuleWindow.UseBruteForceCache = false;
+                ModuleOptimizer.ClearPoolCache();
+                var truth = solver.Solve(varCfg, mods, SolverModes.Gpu, CancellationToken.None);
+                var truthScores = truth.BestModResults.Select(x => x.Score).OrderByDescending(x => x).ToList();
+
+                // Cache on: base full solve builds the pool, then the variation queries it.
+                Settings.Instance.WindowSettings.ModuleWindow.UseBruteForceCache = true;
+                ModuleOptimizer.ClearPoolCache();
+                var swBase = Stopwatch.StartNew();
+                solver.Solve(baseCfg, mods, SolverModes.Gpu, CancellationToken.None);
+                swBase.Stop();
+                var swVar = Stopwatch.StartNew();
+                var cached = solver.Solve(varCfg, mods, SolverModes.Gpu, CancellationToken.None);
+                swVar.Stop();
+                var cachedScores = cached.BestModResults.Select(x => x.Score).OrderByDescending(x => x).ToList();
+
+                bool match = truthScores.SequenceEqual(cachedScores);
+                if (!match) failures++;
+
+                Console.WriteLine($"  base solve {swBase.Elapsed.TotalSeconds:F2}s -> variation {swVar.Elapsed.TotalSeconds:F2}s  " +
+                    $"FromCache={cached.FromCache} CacheExact={cached.CacheExact}");
+                Console.WriteLine($"  truth  top10: [{string.Join(",", truthScores)}]");
+                Console.WriteLine($"  cached top10: [{string.Join(",", cachedScores)}]");
+                Console.WriteLine($"  {(match ? "OK: identical" : "!!! MISMATCH !!!")}");
+            }
+
+            Settings.Instance.WindowSettings.ModuleWindow.UseBruteForceCache = false;
+            Console.WriteLine(new string('=', 100));
+            Console.WriteLine($"[verify] cache checks: {checks.Count - failures}/{checks.Count} passed");
         }
 
         // ---- case definitions ----
